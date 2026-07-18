@@ -64,6 +64,13 @@ enum Equipment {
   other
 }
 
+enum Meal {
+  breakfast
+  lunch
+  dinner
+  snacks
+}
+
 /* --------------------------------- Auth ---------------------------------- */
 
 model User {
@@ -285,6 +292,7 @@ model FoodEntry {
   food      Food    @relation(fields: [foodId], references: [id])
   foodId    String
   servings  Float
+  meal      Meal    @default(breakfast)
 
   @@index([foodLogId])
 }

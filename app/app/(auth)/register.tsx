@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppText } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { useAuthStore } from '@/features/auth/authStore';
@@ -28,40 +29,64 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-surface">
-      <View className="flex-1 justify-center gap-8 px-6">
-        <View className="gap-2">
-          <Text className="text-4xl font-black tracking-tight text-content">Create account</Text>
-          <Text className="text-base text-content-muted">Start your first plan today.</Text>
-        </View>
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerClassName="flex-grow justify-center gap-8 px-6 py-8"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="gap-2">
+            <AppText variant="title">Create account</AppText>
+            <AppText variant="body" className="text-content-muted">
+              Start your first plan today.
+            </AppText>
+          </View>
 
-        <View className="gap-4">
-          <TextField label="Name" value={displayName} onChangeText={setDisplayName} placeholder="Alex" />
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="you@example.com"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="At least 8 characters"
-            error={error ?? undefined}
-          />
-          <Button label="Sign up" onPress={onSubmit} loading={loading} />
-        </View>
+          <View className="gap-4">
+            <TextField
+              label="Name"
+              value={displayName}
+              onChangeText={setDisplayName}
+              autoComplete="name"
+              placeholder="Alex"
+            />
+            <TextField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              placeholder="you@example.com"
+            />
+            <TextField
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              error={error ?? undefined}
+              onSubmitEditing={onSubmit}
+            />
+            <Button label="Sign up" size="lg" onPress={onSubmit} loading={loading} />
+          </View>
 
-        <View className="flex-row items-center justify-center">
-          <Text className="text-content-muted">Already have an account? </Text>
-          <Link href="/(auth)/login" className="font-bold text-brand">
-            Log in
-          </Link>
-        </View>
-      </View>
+          <View className="flex-row items-center justify-center">
+            <AppText variant="body" className="text-content-muted">
+              Already have an account?{' '}
+            </AppText>
+            <Link href="/(auth)/login" asChild>
+              <AppText variant="body" className="font-bold text-brand-text">
+                Log in
+              </AppText>
+            </Link>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

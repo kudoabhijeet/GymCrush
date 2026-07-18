@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { loginSchema, refreshSchema, registerSchema } from '@gymcrush/shared';
+import { requireAuth, type AuthedRequest } from '../../middleware/auth.js';
 import { asyncHandler } from '../../middleware/error.js';
 import { validateBody } from '../../middleware/validate.js';
 import * as authService from './auth.service.js';
@@ -39,5 +40,16 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     await authService.logout(req.body.refreshToken);
     res.status(204).send();
+  }),
+);
+
+// GET /api/auth/me — the current user, for session hydration
+authRouter.get(
+  '/me',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    const user = await authService.getMe(userId);
+    res.json({ user });
   }),
 );

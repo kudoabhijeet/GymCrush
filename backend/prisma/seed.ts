@@ -1,6 +1,32 @@
+import bcrypt from 'bcryptjs';
 import { PrismaClient, type Equipment, type MuscleGroup } from '@prisma/client';
+import { FOOD_CATALOG } from './fixtures.js';
 
 const prisma = new PrismaClient();
+
+/**
+ * A real (idempotent) dev account so the app's dev auto-login
+ * (EXPO_PUBLIC_DEV_LOGIN=1) can obtain genuine tokens against the API.
+ * Local development only — do not seed in production.
+ */
+const DEV_USER = {
+  email: 'dev@gymcrush.app',
+  password: 'devpassword123',
+  displayName: 'Alex',
+};
+
+async function seedDevUser() {
+  const existing = await prisma.user.findUnique({ where: { email: DEV_USER.email } });
+  if (existing) {
+    console.log(`✅ Dev user already present: ${DEV_USER.email}`);
+    return;
+  }
+  const passwordHash = await bcrypt.hash(DEV_USER.password, 12);
+  await prisma.user.create({
+    data: { email: DEV_USER.email, passwordHash, displayName: DEV_USER.displayName },
+  });
+  console.log(`✅ Dev user created: ${DEV_USER.email} / ${DEV_USER.password}`);
+}
 
 /** A compact starter catalog of common exercises (ownerId null => global). */
 const EXERCISES: Array<{ name: string; muscleGroup: MuscleGroup; equipment: Equipment }> = [
@@ -30,6 +56,18 @@ const EXERCISES: Array<{ name: string; muscleGroup: MuscleGroup; equipment: Equi
   { name: 'Hanging Leg Raise', muscleGroup: 'core', equipment: 'bodyweight' },
 ];
 
+/** Global food catalog (ownerId null), idempotent by name. */
+async function seedFoodCatalog() {
+  for (const food of FOOD_CATALOG) {
+    const existing = await prisma.food.findFirst({ where: { name: food.name, ownerId: null } });
+    if (!existing) {
+      await prisma.food.create({ data: { ...food, ownerId: null } });
+    }
+  }
+  const count = await prisma.food.count({ where: { ownerId: null } });
+  console.log(`✅ Food catalog ready: ${count} global foods.`);
+}
+
 async function main() {
   console.log('🌱 Seeding exercise catalog...');
   for (const ex of EXERCISES) {
@@ -43,6 +81,9 @@ async function main() {
   }
   const count = await prisma.exercise.count({ where: { ownerId: null } });
   console.log(`✅ Catalog ready: ${count} global exercises.`);
+
+  await seedFoodCatalog();
+  await seedDevUser();
 }
 
 main()

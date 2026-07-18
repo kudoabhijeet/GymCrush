@@ -1,3 +1,54 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * GymCrush theme tokens — RGB triplets so Tailwind alpha modifiers work
+ * (`rgb(var(--gc-x) / <alpha-value>)` in tailwind.config.js).
+ *
+ * Light is :root; dark overrides via prefers-color-scheme. NativeWind maps
+ * this to the Appearance API on native, and `colorScheme.set()` (Profile
+ * screen toggle) can override it manually.
+ */
+
+:root {
+  /* surfaces */
+  --gc-surface: 246 248 245;
+  --gc-surface-elevated: 255 255 255;
+  --gc-surface-muted: 231 236 230;
+
+  /* text */
+  --gc-content: 22 26 23;
+  --gc-content-muted: 87 98 92;
+  --gc-content-faint: 152 162 156;
+
+  /* brand text/links — olive lime, readable on white */
+  --gc-brand-text: 77 124 15;
+
+  /* status */
+  --gc-danger: 220 38 38;
+  --gc-warning: 180 83 9;
+  --gc-success: 21 128 61;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* surfaces */
+    --gc-surface: 10 12 11;
+    --gc-surface-elevated: 20 24 26;
+    --gc-surface-muted: 31 37 40;
+
+    /* text */
+    --gc-content: 244 246 245;
+    --gc-content-muted: 154 164 162;
+    --gc-content-faint: 93 106 103;
+
+    /* brand text/links — full volt on dark */
+    --gc-brand-text: 204 255 0;
+
+    /* status */
+    --gc-danger: 255 77 77;
+    --gc-warning: 255 176 32;
+    --gc-success: 61 220 132;
+  }
+}

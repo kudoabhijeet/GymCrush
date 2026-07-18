@@ -1,16 +1,50 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth.js';
+import { z } from 'zod';
+import { createExerciseSchema, MuscleGroup } from '@gymcrush/shared';
+import { requireAuth, type AuthedRequest } from '../../middleware/auth.js';
+import { asyncHandler } from '../../middleware/error.js';
+import { validateBody, validateQuery } from '../../middleware/validate.js';
+import * as exerciseService from './exercise.service.js';
 
-/**
- * Exercise catalog + custom exercises. Phase 1 TODO:
- *  - GET  /            list/search catalog + user-custom (query: q, muscleGroup)
- *  - POST /            create custom exercise (validateBody(createExerciseSchema))
- *  - DELETE /:id       remove a user-custom exercise
- */
+const listQuerySchema = z.object({
+  search: z.string().max(80).optional(),
+  muscleGroup: MuscleGroup.optional(),
+});
+type ListQuery = z.infer<typeof listQuerySchema>;
+
 export const exerciseRouter = Router();
 
 exerciseRouter.use(requireAuth);
 
-exerciseRouter.get('/', (_req, res) => {
-  res.status(501).json({ error: 'Not implemented — Phase 1: exercise catalog' });
-});
+// GET /api/exercises?search=&muscleGroup=
+exerciseRouter.get(
+  '/',
+  validateQuery(listQuerySchema),
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    const query = (req as unknown as { validatedQuery: ListQuery }).validatedQuery;
+    const exercises = await exerciseService.listExercises(userId, query);
+    res.json({ exercises });
+  }),
+);
+
+// POST /api/exercises  — create a custom exercise
+exerciseRouter.post(
+  '/',
+  validateBody(createExerciseSchema),
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    const exercise = await exerciseService.createExercise(userId, req.body);
+    res.status(201).json({ exercise });
+  }),
+);
+
+// DELETE /api/exercises/:id  — remove a custom exercise
+exerciseRouter.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    await exerciseService.deleteExercise(userId, req.params.id);
+    res.status(204).send();
+  }),
+);

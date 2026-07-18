@@ -15,6 +15,8 @@
     "dev:backend": "pnpm --filter @gymcrush/backend dev",
     "build:shared": "pnpm --filter @gymcrush/shared build",
     "db:migrate": "pnpm --filter @gymcrush/backend prisma migrate dev",
+    "db:seed": "pnpm --filter @gymcrush/backend db:seed",
+    "db:seed:demo": "pnpm --filter @gymcrush/backend db:seed:demo",
     "db:studio": "pnpm --filter @gymcrush/backend prisma studio",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"

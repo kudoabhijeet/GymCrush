@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
-import type { AuthResponse, LoginInput, RegisterInput } from '@gymcrush/shared';
+import type { AuthResponse, LoginInput, PublicUser, RegisterInput } from '@gymcrush/shared';
 import { prisma } from '../../db/prisma.js';
-import { conflict, unauthorized } from '../../lib/errors.js';
+import { conflict, notFound, unauthorized } from '../../lib/errors.js';
 import {
   generateRefreshToken,
   hashToken,
@@ -54,6 +54,13 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
 
   const tokens = await issueTokens(user.id);
   return { user: toPublicUser(user), tokens };
+}
+
+/** The currently authenticated user, for session hydration on app start. */
+export async function getMe(userId: string): Promise<PublicUser> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw notFound('User not found');
+  return toPublicUser(user);
 }
 
 export async function refresh(refreshToken: string) {

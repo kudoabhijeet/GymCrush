@@ -1,38 +1,52 @@
 /** @type {import('tailwindcss').Config} */
+
+/** Theme-flipping tokens live as CSS variables in global.css. */
+const v = (name) => `rgb(var(--gc-${name}) / <alpha-value>)`;
+
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './src/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        // Fitness palette: electric "volt" lime energy on a deep charcoal base,
-        // with a warm energy accent. Consumed via className="bg-brand" etc.
+        // Constant across themes: volt fill + what sits on it.
         brand: {
-          DEFAULT: '#ccff00', // volt lime — high-energy athletic primary
+          DEFAULT: '#ccff00',
           dark: '#a6d400',
-          soft: '#e5ff66',
+          fg: '#0a0c0b', // text/icons placed on a brand fill
+          text: v('brand-text'), // links & accents — flips per theme
         },
         accent: {
-          DEFAULT: '#ff5a1f', // energy orange — secondary highlights / streaks
+          DEFAULT: '#ff5a1f',
           dark: '#e0430c',
         },
+        // Theme-flipping semantic tokens.
         surface: {
-          DEFAULT: '#0a0c0b', // near-black with a faint cool tint
-          elevated: '#14181a',
-          muted: '#1f2528',
+          DEFAULT: v('surface'),
+          elevated: v('surface-elevated'),
+          muted: v('surface-muted'),
         },
         content: {
-          DEFAULT: '#f4f6f5',
-          muted: '#9aa4a2',
-          faint: '#5d6a67',
+          DEFAULT: v('content'),
+          muted: v('content-muted'),
+          faint: v('content-faint'),
         },
-        danger: '#ff4d4d',
-        warning: '#ffb020',
-        success: '#3ddc84',
+        danger: v('danger'),
+        warning: v('warning'),
+        success: v('success'),
+      },
+      fontFamily: {
+        body: ['Figtree_400Regular'],
+        medium: ['Figtree_500Medium'],
+        semibold: ['Figtree_600SemiBold'],
+        bold: ['Figtree_700Bold'],
+        extrabold: ['Figtree_800ExtraBold'],
+        black: ['Figtree_900Black'],
       },
       borderRadius: {
         xl: '16px',
         '2xl': '22px',
+        '3xl': '28px',
       },
     },
   },

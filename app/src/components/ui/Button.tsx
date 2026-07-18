@@ -1,35 +1,73 @@
-import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
+import type { ReactNode } from 'react';
+import { ActivityIndicator, Text, View, type PressableProps } from 'react-native';
+import { useThemeColors } from '@/lib/theme';
+import { PressableScale } from './PressableScale';
+
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<PressableProps, 'children'> {
   label: string;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: Variant;
+  size?: Size;
   loading?: boolean;
+  /** Optional lucide icon rendered before the label. */
+  icon?: ReactNode;
 }
 
-const base = 'flex-row items-center justify-center rounded-2xl px-5 py-4';
-const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-brand active:bg-brand-dark',
-  secondary: 'bg-surface-muted active:opacity-80',
-  ghost: 'bg-transparent active:bg-surface-muted',
-};
-const textVariants: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'text-black',
-  secondary: 'text-content',
-  ghost: 'text-content-muted',
+const containerVariants: Record<Variant, string> = {
+  primary: 'bg-brand',
+  secondary: 'bg-surface-muted',
+  ghost: 'bg-transparent',
+  danger: 'bg-danger/10',
 };
 
-export function Button({ label, variant = 'primary', loading, disabled, ...rest }: ButtonProps) {
+const textVariants: Record<Variant, string> = {
+  primary: 'text-brand-fg',
+  secondary: 'text-content',
+  ghost: 'text-content-muted',
+  danger: 'text-danger',
+};
+
+const containerSizes: Record<Size, string> = {
+  sm: 'px-4 py-2.5 rounded-xl',
+  md: 'px-5 py-3.5 rounded-2xl',
+  lg: 'px-6 py-4 rounded-2xl',
+};
+
+const textSizes: Record<Size, string> = {
+  sm: 'text-sm',
+  md: 'text-base',
+  lg: 'text-base',
+};
+
+export function Button({
+  label,
+  variant = 'primary',
+  size = 'md',
+  loading,
+  icon,
+  disabled,
+  className = '',
+  ...rest
+}: ButtonProps & { className?: string }) {
+  const colors = useThemeColors();
+  const isDisabled = disabled || loading;
+
   return (
-    <Pressable
-      className={`${base} ${variants[variant]} ${disabled || loading ? 'opacity-50' : ''}`}
-      disabled={disabled || loading}
+    <PressableScale
+      className={`flex-row items-center justify-center gap-2 ${containerVariants[variant]} ${containerSizes[size]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
+      disabled={isDisabled}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color="#000" />
+        <ActivityIndicator color={variant === 'primary' ? colors.brandFg : colors.content} />
       ) : (
-        <Text className={`text-base font-bold ${textVariants[variant]}`}>{label}</Text>
+        <>
+          {icon ? <View>{icon}</View> : null}
+          <Text className={`font-bold ${textSizes[size]} ${textVariants[variant]}`}>{label}</Text>
+        </>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }

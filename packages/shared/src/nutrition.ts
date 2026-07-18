@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ActivityLevel, NutritionGoal, Sex } from './common.js';
 
+export const Meal = z.enum(['breakfast', 'lunch', 'dinner', 'snacks']);
+export type Meal = z.infer<typeof Meal>;
+
 export const bodyProfileSchema = z.object({
   id: z.string(),
   ownerId: z.string(),
@@ -61,6 +64,7 @@ export const foodEntrySchema = z.object({
   id: z.string(),
   foodId: z.string(),
   servings: z.number().min(0.01).max(100),
+  meal: Meal,
 });
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
 
@@ -69,5 +73,42 @@ export const logFoodSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   foodId: z.string(),
   servings: z.number().min(0.01).max(100),
+  meal: Meal.default('breakfast'),
 });
 export type LogFoodInput = z.infer<typeof logFoodSchema>;
+
+/* ------------------------------- Daily log ------------------------------- */
+
+/** Macro totals for an entry or a whole day. */
+export const macrosSchema = z.object({
+  calories: z.number(),
+  proteinG: z.number(),
+  carbsG: z.number(),
+  fatG: z.number(),
+});
+export type Macros = z.infer<typeof macrosSchema>;
+
+/** A logged entry enriched with its food and computed macros (server-shaped). */
+export const dailyLogEntrySchema = z.object({
+  id: z.string(),
+  foodId: z.string(),
+  servings: z.number(),
+  meal: Meal,
+  food: foodSchema,
+  macros: macrosSchema,
+});
+export type DailyLogEntry = z.infer<typeof dailyLogEntrySchema>;
+
+export const dailyLogSchema = z.object({
+  date: z.string(),
+  entries: z.array(dailyLogEntrySchema),
+  totals: macrosSchema,
+});
+export type DailyLog = z.infer<typeof dailyLogSchema>;
+
+export const weightEntrySchema = z.object({
+  id: z.string(),
+  weightKg: z.number(),
+  loggedAt: z.string(),
+});
+export type WeightEntry = z.infer<typeof weightEntrySchema>;

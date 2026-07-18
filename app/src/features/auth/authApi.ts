@@ -1,4 +1,4 @@
-import type { AuthResponse, LoginInput, RegisterInput } from '@gymcrush/shared';
+import type { AuthResponse, LoginInput, PublicUser, RegisterInput } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 
 export const authApi = {
@@ -10,4 +10,7 @@ export const authApi = {
 
   logout: (refreshToken: string) =>
     api<void>('/api/auth/logout', { method: 'POST', body: { refreshToken }, auth: false }),
+
+  /** The current user (uses the stored access token, refreshing if needed). */
+  me: () => api<{ user: PublicUser }>('/api/auth/me'),
 };
