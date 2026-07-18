@@ -1,43 +1,26 @@
 {
   "name": "gymcrush",
-  "main": "expo-router/entry",
-  "version": "1.0.0",
-  "dependencies": {
-    "@expo/ui": "~57.0.7",
-    "expo": "~57.0.7",
-    "expo-constants": "~57.0.6",
-    "expo-device": "~57.0.1",
-    "expo-font": "~57.0.1",
-    "expo-glass-effect": "~57.0.1",
-    "expo-image": "~57.0.1",
-    "expo-linking": "~57.0.3",
-    "expo-router": "~57.0.7",
-    "expo-splash-screen": "~57.0.4",
-    "expo-status-bar": "~57.0.1",
-    "expo-symbols": "~57.0.1",
-    "expo-system-ui": "~57.0.1",
-    "expo-web-browser": "~57.0.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-native": "0.86.0",
-    "react-native-gesture-handler": "~2.32.0",
-    "react-native-reanimated": "4.5.0",
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2",
-    "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.10.0"
-  },
-  "devDependencies": {
-    "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+  "version": "0.1.0",
+  "private": true,
+  "description": "GymCrush — a power-user gym app: workout plans, logging, and macro tracking with a rich UI/UX.",
+  "packageManager": "pnpm@11.14.0",
+  "engines": {
+    "node": ">=22.13.0"
   },
   "scripts": {
-    "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "lint": "expo lint"
+    "app": "pnpm --filter @gymcrush/app",
+    "backend": "pnpm --filter @gymcrush/backend",
+    "shared": "pnpm --filter @gymcrush/shared",
+    "dev:app": "pnpm --filter @gymcrush/app start",
+    "dev:backend": "pnpm --filter @gymcrush/backend dev",
+    "build:shared": "pnpm --filter @gymcrush/shared build",
+    "db:migrate": "pnpm --filter @gymcrush/backend prisma migrate dev",
+    "db:studio": "pnpm --filter @gymcrush/backend prisma studio",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
   },
-  "private": true
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  }
 }

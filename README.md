@@ -1,56 +1,80 @@
-# Welcome to your Expo app 👋
+# GymCrush 🏋️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A power-user gym app: **workout plans, a fast workout logger, and a smart macro tracker** — with a rich, responsive UI/UX. See [PRD.md](./PRD.md) for the full product spec, phases, and TODOs.
 
-## Get started
+## Monorepo layout
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+GymCrush/
+├── app/                  Expo SDK 57 app (Expo Router + NativeWind)
+│   ├── app/              file-based routes
+│   │   ├── (auth)/       login / register
+│   │   └── (tabs)/       Home · Plans · Log · Nutrition
+│   └── src/
+│       ├── components/ui reusable themed primitives
+│       ├── features/     domain modules (auth, …)
+│       └── lib/          api client, secure token store, query client
+├── backend/              Express + Prisma + PostgreSQL API
+│   ├── prisma/           schema.prisma + seed
+│   └── src/
+│       ├── config/       env validation
+│       ├── db/           prisma client
+│       ├── lib/          tokens, errors
+│       ├── middleware/   auth, validate, error
+│       └── modules/      auth · exercises · plans · sessions · nutrition
+├── packages/shared/      Zod schemas + types + calorie/macro math (used by both)
+├── pnpm-workspace.yaml
+└── PRD.md
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Prerequisites
 
-### Other setup steps
+- Node.js ≥ 22.13
+- pnpm (`corepack enable pnpm`)
+- PostgreSQL running locally (or a connection string)
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Setup
 
-## Learn more
+```bash
+# 1. Install everything
+pnpm install
 
-To learn more about developing your project with Expo, look at the following resources:
+# 2. Build shared types (app & backend depend on it)
+pnpm build:shared
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# 3. Backend env + database
+cp backend/.env.example backend/.env      # then edit DATABASE_URL + JWT secrets
+pnpm --filter @gymcrush/backend db:generate
+pnpm db:migrate                            # creates tables
+pnpm --filter @gymcrush/backend db:seed    # seeds the exercise catalog
 
-## Join the community
+# 4. App env
+cp app/.env.example app/.env               # set EXPO_PUBLIC_API_URL
+```
 
-Join our community of developers creating universal apps.
+## Running
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+pnpm dev:backend   # API on http://localhost:4000  (GET /health to check)
+pnpm dev:app       # Expo — press i / a / w for iOS / Android / web
+```
+
+## Useful scripts (from repo root)
+
+| Command | What |
+|---------|------|
+| `pnpm typecheck` | Typecheck every package |
+| `pnpm build:shared` | Compile `packages/shared` |
+| `pnpm db:migrate` | Run Prisma migrations |
+| `pnpm db:studio` | Open Prisma Studio |
+| `pnpm dev:app` / `pnpm dev:backend` | Start app / API |
+
+## Stack
+
+- **App:** Expo SDK 57 (RN 0.86, React 19.2), Expo Router, NativeWind, TanStack Query, Zustand, Reanimated
+- **Backend:** Express, Prisma, PostgreSQL, JWT (access + refresh), Zod
+- **Shared:** Zod schemas + TypeScript types + nutrition formulas
+
+## Current status
+
+Phase 0 (scaffolding) complete: monorepo, shared contracts, auth end-to-end wiring, and screen/route/endpoint skeletons for all pillars. Phase 1 (Plans + Logging) is next — see [PRD.md §7](./PRD.md).

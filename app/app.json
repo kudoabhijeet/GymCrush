@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "GymCrush",
+    "slug": "gymcrush",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "gymcrush",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gymcrush.app"
+    },
+    "android": {
+      "package": "com.gymcrush.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-splash-screen"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
