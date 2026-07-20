@@ -259,7 +259,10 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
 
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       queryClient.invalidateQueries({ queryKey: ['exercise-history'] });
-      set({ session: null, restTimer: null, saving: false });
+      // Keep `session` set so the discard-effect on the active screen doesn't
+      // fire a competing navigation; the caller navigates to the summary and
+      // then calls `clear()`. Only stop the saving spinner here.
+      set({ restTimer: null, saving: false });
       return started.id;
     } catch {
       // Keep the local session so the user can retry.

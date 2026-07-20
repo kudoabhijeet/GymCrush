@@ -9,7 +9,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/* --------------------------------- Enums --------------------------------- */
+/**
+ * --------------------------------- Enums ---------------------------------
+ */
 
 enum Goal {
   strength
@@ -71,49 +73,53 @@ enum Meal {
   snacks
 }
 
-/* --------------------------------- Auth ---------------------------------- */
+/**
+ * --------------------------------- Auth ----------------------------------
+ */
 
 model User {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
   passwordHash String
   displayName  String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens  RefreshToken[]
+  refreshTokens   RefreshToken[]
   customExercises Exercise[]
-  plans          WorkoutPlan[]
-  sessions       WorkoutSession[]
-  bodyProfile    BodyProfile?
-  bodyMetrics    BodyMetricLog[]
-  macroTarget    MacroTarget?
-  customFoods    Food[]
-  foodLogs       FoodLog[]
+  plans           WorkoutPlan[]
+  sessions        WorkoutSession[]
+  bodyProfile     BodyProfile?
+  bodyMetrics     BodyMetricLog[]
+  macroTarget     MacroTarget?
+  customFoods     Food[]
+  foodLogs        FoodLog[]
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  tokenHash String   @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String    @db.Uuid
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   revokedAt DateTime?
 
   @@index([userId])
 }
 
-/* ------------------------------- Exercises ------------------------------- */
+/**
+ * ------------------------------- Exercises -------------------------------
+ */
 
 model Exercise {
-  id          String      @id @default(cuid())
+  id          String      @id @default(uuid()) @db.Uuid
   name        String
   muscleGroup MuscleGroup
   equipment   Equipment
   // null => global catalog exercise; set => user-custom
   owner       User?       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId     String?
+  ownerId     String?     @db.Uuid
 
   planExercises   PlanExercise[]
   loggedExercises LoggedExercise[]
@@ -122,12 +128,14 @@ model Exercise {
   @@index([muscleGroup])
 }
 
-/* ------------------------------ Workout Plans ---------------------------- */
+/**
+ * ------------------------------ Workout Plans ----------------------------
+ */
 
 model WorkoutPlan {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid()) @db.Uuid
   owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId     String
+  ownerId     String   @db.Uuid
   name        String
   description String?
   goal        Goal
@@ -144,9 +152,9 @@ model WorkoutPlan {
 }
 
 model PlanDay {
-  id     String @id @default(cuid())
+  id     String      @id @default(uuid()) @db.Uuid
   plan   WorkoutPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  planId String
+  planId String      @db.Uuid
   name   String
   order  Int
 
@@ -157,11 +165,11 @@ model PlanDay {
 }
 
 model PlanExercise {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid()) @db.Uuid
   day         PlanDay  @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  dayId       String
+  dayId       String   @db.Uuid
   exercise    Exercise @relation(fields: [exerciseId], references: [id])
-  exerciseId  String
+  exerciseId  String   @db.Uuid
   order       Int
   targetSets  Int
   targetReps  String
@@ -172,18 +180,20 @@ model PlanExercise {
   @@index([dayId])
 }
 
-/* ------------------------------ Workout Logs ----------------------------- */
+/**
+ * ------------------------------ Workout Logs -----------------------------
+ */
 
 model WorkoutSession {
-  id         String    @id @default(cuid())
-  owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId    String
+  id         String       @id @default(uuid()) @db.Uuid
+  owner      User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId    String       @db.Uuid
   plan       WorkoutPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
-  planId     String?
-  planDay    PlanDay?  @relation(fields: [planDayId], references: [id], onDelete: SetNull)
-  planDayId  String?
+  planId     String?      @db.Uuid
+  planDay    PlanDay?     @relation(fields: [planDayId], references: [id], onDelete: SetNull)
+  planDayId  String?      @db.Uuid
   name       String
-  startedAt  DateTime  @default(now())
+  startedAt  DateTime     @default(now())
   finishedAt DateTime?
   notes      String?
 
@@ -194,11 +204,11 @@ model WorkoutSession {
 }
 
 model LoggedExercise {
-  id         String   @id @default(cuid())
+  id         String         @id @default(uuid()) @db.Uuid
   session    WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  sessionId  String
-  exercise   Exercise @relation(fields: [exerciseId], references: [id])
-  exerciseId String
+  sessionId  String         @db.Uuid
+  exercise   Exercise       @relation(fields: [exerciseId], references: [id])
+  exerciseId String         @db.Uuid
   order      Int
 
   sets LoggedSet[]
@@ -207,25 +217,27 @@ model LoggedExercise {
 }
 
 model LoggedSet {
-  id               String   @id @default(cuid())
+  id               String         @id @default(uuid()) @db.Uuid
   loggedExercise   LoggedExercise @relation(fields: [loggedExerciseId], references: [id], onDelete: Cascade)
-  loggedExerciseId String
+  loggedExerciseId String         @db.Uuid
   setNumber        Int
   weight           Float?
   reps             Int?
   rpe              Float?
-  isWarmup         Boolean  @default(false)
-  completed        Boolean  @default(true)
+  isWarmup         Boolean        @default(false)
+  completed        Boolean        @default(true)
 
   @@index([loggedExerciseId])
 }
 
-/* ------------------------------- Nutrition ------------------------------- */
+/**
+ * ------------------------------- Nutrition -------------------------------
+ */
 
 model BodyProfile {
-  id            String        @id @default(cuid())
+  id            String        @id @default(uuid()) @db.Uuid
   owner         User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId       String        @unique
+  ownerId       String        @unique @db.Uuid
   sex           Sex
   age           Int
   heightCm      Float
@@ -236,9 +248,9 @@ model BodyProfile {
 }
 
 model BodyMetricLog {
-  id       String   @id @default(cuid())
+  id       String   @id @default(uuid()) @db.Uuid
   owner    User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId  String
+  ownerId  String   @db.Uuid
   weightKg Float
   loggedAt DateTime @default(now())
 
@@ -246,9 +258,9 @@ model BodyMetricLog {
 }
 
 model MacroTarget {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid()) @db.Uuid
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId   String   @unique
+  ownerId   String   @unique @db.Uuid
   calories  Int
   proteinG  Int
   carbsG    Int
@@ -257,10 +269,10 @@ model MacroTarget {
 }
 
 model Food {
-  id           String  @id @default(cuid())
+  id           String  @id @default(uuid()) @db.Uuid
   name         String
   owner        User?   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId      String?
+  ownerId      String? @db.Uuid
   servingLabel String
   calories     Float
   proteinG     Float
@@ -273,9 +285,9 @@ model Food {
 }
 
 model FoodLog {
-  id      String   @id @default(cuid())
-  owner   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId String
+  id      String @id @default(uuid()) @db.Uuid
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String @db.Uuid
   // yyyy-mm-dd for the day this log belongs to
   date    String
 
@@ -286,11 +298,11 @@ model FoodLog {
 }
 
 model FoodEntry {
-  id        String  @id @default(cuid())
+  id        String  @id @default(uuid()) @db.Uuid
   foodLog   FoodLog @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
-  foodLogId String
+  foodLogId String  @db.Uuid
   food      Food    @relation(fields: [foodId], references: [id])
-  foodId    String
+  foodId    String  @db.Uuid
   servings  Float
   meal      Meal    @default(breakfast)
 

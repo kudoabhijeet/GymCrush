@@ -29,16 +29,24 @@ async function syncProfileFromServer() {
     ]);
     hydrateProfile(profile, target);
   } catch (e) {
-    // 404 = no profile yet (needs onboarding); anything else, leave unonboarded.
-    if (e instanceof ApiError && e.status === 404) hydrateProfile(null, null);
-    else hydrateProfile(null, null);
+    if (e instanceof ApiError && e.status === 404) {
+      // No profile yet — genuinely needs onboarding.
+      hydrateProfile(null, null);
+    }
+    // Any other error (network blip, 5xx) is transient: don't flip an
+    // authenticated user into onboarding. Leave the store as-is (persisted
+    // units stay; profile/target stay whatever they were). The gate falls
+    // back to the last known `onboarded` value rather than forcing the flow.
   }
 }
 
 async function applyAuth(res: AuthResponse, set: (s: Partial<AuthState>) => void) {
   await tokenStore.set(res.tokens);
-  set({ user: res.user, status: 'authenticated' });
+  // Settle the profile (→ `onboarded`) BEFORE flipping status to authenticated,
+  // so the routing gate never sees authenticated + stale onboarded=false and
+  // wrongly bounces an already-onboarded user into onboarding.
   await syncProfileFromServer();
+  set({ user: res.user, status: 'authenticated' });
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -65,8 +73,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       const { user } = await authApi.me();
-      set({ user, status: 'authenticated' });
       await syncProfileFromServer();
+      set({ user, status: 'authenticated' });
     } catch {
       // Token invalid/expired beyond refresh — sign out.
       await tokenStore.clear();

@@ -46,10 +46,15 @@ export default function ActiveWorkoutScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [finishError, setFinishError] = useState(false);
 
-  // Session was finished/discarded — leave.
+  // Session was discarded — leave the screen. `finish()` navigates to the
+  // summary itself (and briefly nulls the session mid-save), so skip while
+  // saving to avoid a competing navigation. Never call back() with an empty
+  // stack (throws "GO_BACK was not handled") — fall back to the tabs.
   useEffect(() => {
-    if (!session) router.back();
-  }, [session, router]);
+    if (session || saving) return;
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/log');
+  }, [session, saving, router]);
 
   if (!session) return null;
 
@@ -69,8 +74,14 @@ export default function ActiveWorkoutScreen() {
   const onFinish = async () => {
     setFinishError(false);
     const id = await finish();
-    if (id) router.replace({ pathname: '/workout/[id]', params: { id } });
-    else setFinishError(true);
+    if (id) {
+      // Navigate to the summary first (unmounts this screen so the discard
+      // effect can't fire), then clear the persisted active session.
+      router.replace({ pathname: '/workout/[id]', params: { id } });
+      discard();
+    } else {
+      setFinishError(true);
+    }
   };
 
   return (

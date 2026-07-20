@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
-import { BRAND_FG, useThemeColors } from '@/lib/theme';
+import { BRAND, BRAND_FG, useThemeColors } from '@/lib/theme';
 import { formatLongDate, formatRelativeDay } from '@/lib/format';
 import { localDateKey } from '@/lib/format';
 import { useAuthStore } from '@/features/auth/authStore';
@@ -110,19 +110,19 @@ export default function HomeScreen() {
       title={user ? `Hey, ${user.displayName}` : 'Welcome'}
       subtitle={formatLongDate(new Date())}
     >
-      {/* Today hero */}
-      <Card className="gap-4 border-0 bg-brand p-5">
+      {/* Today hero — brand fill via inline style so it always wins the cascade */}
+      <Card className="gap-4 border-0 p-5" style={{ backgroundColor: BRAND }}>
         <View className="flex-row items-center justify-between">
-          <AppText variant="label" className="text-brand-fg/60">
+          <AppText variant="label" style={{ color: BRAND_FG, opacity: 0.6 }}>
             {activeSession ? 'In progress' : "Today's workout"}
           </AppText>
           <Dumbbell size={18} color={BRAND_FG} />
         </View>
         <View className="gap-1">
-          <AppText variant="title" className="text-brand-fg">
+          <AppText variant="title" style={{ color: BRAND_FG }}>
             {activeSession?.name ?? nextWorkout?.day.name ?? 'Freestyle session'}
           </AppText>
-          <AppText variant="caption" className="text-brand-fg/70">
+          <AppText variant="caption" style={{ color: BRAND_FG, opacity: 0.7 }}>
             {activeSession
               ? 'Pick up where you left off'
               : nextWorkout
@@ -132,10 +132,11 @@ export default function HomeScreen() {
         </View>
         <PressableScale
           onPress={activeSession ? () => router.push('/workout/active') : startNextWorkout}
-          className="flex-row items-center justify-center gap-2 rounded-xl bg-brand-fg py-3.5"
+          className="flex-row items-center justify-center gap-2 rounded-xl py-3.5"
+          style={{ backgroundColor: BRAND_FG }}
         >
-          <Play size={16} color={colors.brand} fill={colors.brand} />
-          <AppText className="font-bold text-[15px] text-brand">
+          <Play size={16} color={BRAND} fill={BRAND} />
+          <AppText className="font-bold text-[15px]" style={{ color: BRAND }}>
             {activeSession ? 'Resume workout' : 'Start workout'}
           </AppText>
         </PressableScale>
@@ -171,7 +172,7 @@ export default function HomeScreen() {
           </PressableScale>
         </View>
         <View className="flex-row items-baseline gap-1.5">
-          <AppText className="font-extrabold text-[26px] text-content">
+          <AppText className="font-extrabold text-[26px] leading-[32px] text-content">
             {dailyLog?.totals.calories ?? 0}
           </AppText>
           <AppText variant="caption">/ {macroTarget?.calories ?? '—'} kcal</AppText>

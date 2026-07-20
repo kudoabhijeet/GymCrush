@@ -21,6 +21,7 @@ import { useThemeColors } from '@/lib/theme';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { useExerciseCatalog } from '@/features/exercises/hooks';
+import { SplashOverlay } from '@/components/ui/SplashOverlay';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -96,7 +97,7 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded) return <SplashOverlay />;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

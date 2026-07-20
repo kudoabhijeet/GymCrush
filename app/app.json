@@ -6,6 +6,9 @@
     "orientation": "portrait",
     "scheme": "gymcrush",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#ccff00"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gymcrush.app"
@@ -25,6 +28,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c58ac295-66af-4e1e-9ca6-7b8286d31cf2"
+      }
+    },
+    "owner": "kudo-io"
   }
 }

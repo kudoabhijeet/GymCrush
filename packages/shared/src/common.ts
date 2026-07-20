@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /** Shared primitives and enums used across auth, workout, and nutrition domains. */
 
-export const idSchema = z.string().cuid();
+export const idSchema = z.string().uuid();
 export type Id = z.infer<typeof idSchema>;
 
 export const isoDateTime = z.string().datetime();
