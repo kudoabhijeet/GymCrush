@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "packages": {
+    "node": "22"
+  },
+  "provider": "node",
+  "steps": {
+    "install": {
+      "commands": ["pnpm install --frozen-lockfile"]
+    },
+    "build-shared": {
+      "inputs": [{ "step": "install" }],
+      "commands": ["pnpm build:shared"]
+    },
+    "build": {
+      "inputs": [{ "step": "build-shared" }],
+      "commands": [
+        "pnpm --filter @gymcrush/backend prisma generate",
+        "pnpm --filter @gymcrush/backend build"
+      ]
+    }
+  },
+  "deploy": {
+    "startCommand": "pnpm --filter @gymcrush/backend start"
+  }
+}
