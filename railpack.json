@@ -6,6 +6,7 @@
   "provider": "node",
   "steps": {
     "install": {
+      "inputs": [{ "local": true, "include": ["."] }],
       "commands": [
         "npm install -g corepack@latest",
         "corepack enable",
