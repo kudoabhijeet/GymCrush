@@ -6,7 +6,11 @@
   "provider": "node",
   "steps": {
     "install": {
-      "commands": ["pnpm install --frozen-lockfile"]
+      "commands": [
+        "npm install -g corepack@latest",
+        "corepack enable",
+        "pnpm install --frozen-lockfile"
+      ]
     },
     "build-shared": {
       "inputs": [{ "step": "install" }],
