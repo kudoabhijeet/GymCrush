@@ -13,7 +13,8 @@
       "commands": [
         "npm install -g corepack@latest",
         "corepack enable",
-        "pnpm install --frozen-lockfile"
+        "pnpm install --frozen-lockfile",
+        "pnpm --filter @gymcrush/backend prisma generate"
       ]
     },
     "build-shared": {
@@ -23,7 +24,6 @@
     "build": {
       "inputs": [{ "step": "build-shared" }],
       "commands": [
-        "pnpm --filter @gymcrush/backend prisma generate",
         "pnpm --filter @gymcrush/backend build"
       ]
     }
