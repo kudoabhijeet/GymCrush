@@ -6,6 +6,10 @@
   "provider": "node",
   "steps": {
     "install": {
+      "inputs": [
+        { "step": "packages:mise" },
+        { "local": true, "include": ["."] }
+      ],
       "commands": [
         "npm install -g corepack@latest",
         "corepack enable",
