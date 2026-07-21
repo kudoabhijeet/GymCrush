@@ -6,12 +6,7 @@
   "provider": "node",
   "steps": {
     "install": {
-      "inputs": [
-        { "image": "ghcr.io/railwayapp/railpack-builder:latest" },
-        { "local": true, "include": ["."] }
-      ],
       "commands": [
-        "npm install -g corepack@latest",
         "corepack enable",
         "pnpm install --frozen-lockfile"
       ]
