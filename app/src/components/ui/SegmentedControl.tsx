@@ -23,7 +23,9 @@ export function SegmentedControl<T extends string>({
   const segmentWidth = width > 0 ? (width - 8) / options.length : 0;
 
   const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: withSpring(index * segmentWidth, { damping: 20, stiffness: 250 }) }],
+    transform: [
+      { translateX: withSpring(index * segmentWidth, { damping: 26, stiffness: 260, mass: 0.9 }) },
+    ],
     width: segmentWidth,
   }));
 

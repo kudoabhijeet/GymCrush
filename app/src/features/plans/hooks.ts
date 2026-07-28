@@ -12,6 +12,17 @@ export function usePlans() {
   });
 }
 
+/** Curated templates only — the Explore tab. */
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['plans', 'templates'],
+    queryFn: async (): Promise<WorkoutPlan[]> => {
+      const { plans } = await api<{ plans: WorkoutPlan[] }>('/api/plans?templatesOnly=true');
+      return plans;
+    },
+  });
+}
+
 export function usePlan(id: string | undefined) {
   return useQuery({
     queryKey: ['plans', id],

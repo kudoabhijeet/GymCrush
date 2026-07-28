@@ -9,10 +9,14 @@
     "icon": "./assets/images/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gymcrush.app"
+      "bundleIdentifier": "com.kudoabhijeet.gymcrush",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "buildNumber": "2"
     },
     "android": {
-      "package": "com.gymcrush.app",
+      "package": "com.kudoabhijeet.gymcrush",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0a0c0b"

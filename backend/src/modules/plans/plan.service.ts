@@ -61,7 +61,8 @@ export async function createPlan(userId: string, input: UpsertPlanInput): Promis
       description: input.description ?? null,
       goal: input.goal,
       daysPerWeek: input.daysPerWeek,
-      isTemplate: input.isTemplate ?? false,
+      // Templates are system-managed (seeded); user input can never set this.
+      isTemplate: false,
       days: { create: daysCreate(input) },
     },
     include: planInclude,
@@ -92,7 +93,6 @@ export async function updatePlan(
         description: input.description ?? null,
         goal: input.goal,
         daysPerWeek: input.daysPerWeek,
-        isTemplate: input.isTemplate ?? existing.isTemplate,
         days: { create: daysCreate(input) },
       },
       include: planInclude,
@@ -112,7 +112,8 @@ export async function duplicatePlan(userId: string, id: string): Promise<Workout
   const copy = await prisma.workoutPlan.create({
     data: {
       ownerId: userId,
-      name: `${source.name} (Copy)`,
+      // Adopting a template keeps its clean name; copying your own plan marks it.
+      name: source.isTemplate ? source.name : `${source.name} (Copy)`,
       description: source.description,
       goal: source.goal,
       daysPerWeek: source.daysPerWeek,

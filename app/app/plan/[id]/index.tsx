@@ -6,6 +6,7 @@ import { Copy, MoreHorizontal, Pencil, Play, Trash2 } from 'lucide-react-native'
 import { AppText } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
@@ -71,6 +72,18 @@ export default function PlanDetailScreen() {
               <Badge label={`${plan.daysPerWeek}x / week`} />
               {plan.isTemplate ? <Badge label="Template" tone="accent" /> : null}
             </View>
+            {plan.isTemplate ? (
+              <Button
+                label="Use this template"
+                loading={duplicatePlan.isPending}
+                onPress={() =>
+                  duplicatePlan.mutate(plan.id, {
+                    onSuccess: (copy) =>
+                      router.replace({ pathname: '/plan/[id]', params: { id: copy.id } }),
+                  })
+                }
+              />
+            ) : null}
           </Card>
 
           {plan.days.map((day) => (
@@ -121,31 +134,36 @@ export default function PlanDetailScreen() {
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Plan options">
         <View className="gap-1">
+          {/* Templates are owned by the system account — editing/deleting would 404. */}
+          {plan?.isTemplate ? null : (
+            <ListRow
+              title="Edit plan"
+              left={<Pencil size={20} color={colors.content} />}
+              onPress={() => {
+                setMenuOpen(false);
+                router.push({ pathname: '/plan/[id]/edit', params: { id: id! } });
+              }}
+            />
+          )}
           <ListRow
-            title="Edit plan"
-            left={<Pencil size={20} color={colors.content} />}
-            onPress={() => {
-              setMenuOpen(false);
-              router.push({ pathname: '/plan/[id]/edit', params: { id: id! } });
-            }}
-          />
-          <ListRow
-            title="Duplicate"
+            title={plan?.isTemplate ? 'Use this template' : 'Duplicate'}
             left={<Copy size={20} color={colors.content} />}
             onPress={() => {
               setMenuOpen(false);
               duplicatePlan.mutate(id!, { onSuccess: () => router.back() });
             }}
           />
-          <ListRow
-            title="Delete plan"
-            destructive
-            left={<Trash2 size={20} color={colors.danger} />}
-            onPress={() => {
-              setMenuOpen(false);
-              deletePlan.mutate(id!, { onSuccess: () => router.back() });
-            }}
-          />
+          {plan?.isTemplate ? null : (
+            <ListRow
+              title="Delete plan"
+              destructive
+              left={<Trash2 size={20} color={colors.danger} />}
+              onPress={() => {
+                setMenuOpen(false);
+                deletePlan.mutate(id!, { onSuccess: () => router.back() });
+              }}
+            />
+          )}
         </View>
       </BottomSheet>
     </SafeAreaView>

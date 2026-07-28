@@ -5,6 +5,7 @@ import { CalendarDays, ClipboardList, Layers, Plus } from 'lucide-react-native';
 import type { Goal, WorkoutPlan } from '@gymcrush/shared';
 import { AppText } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -12,7 +13,7 @@ import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { BRAND_FG, useThemeColors } from '@/lib/theme';
-import { usePlans } from '@/features/plans/hooks';
+import { useDuplicatePlan, usePlans, useTemplates } from '@/features/plans/hooks';
 
 const GOAL_LABELS: Record<Goal, string> = {
   strength: 'Strength',
@@ -25,12 +26,17 @@ const GOAL_LABELS: Record<Goal, string> = {
 export default function PlansScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const { data: plans, isLoading } = usePlans();
   const [tab, setTab] = useState<'mine' | 'explore'>('mine');
+  const mine = usePlans();
+  const templates = useTemplates();
 
+  const isLoading = tab === 'mine' ? mine.isLoading : templates.isLoading;
+  // /api/plans also returns templates (read access is intentionally broad), so
+  // the "mine" tab drops them here.
   const visible = useMemo(
-    () => (plans ?? []).filter((p) => (tab === 'mine' ? !p.isTemplate : p.isTemplate)),
-    [plans, tab],
+    () =>
+      tab === 'mine' ? (mine.data ?? []).filter((p) => !p.isTemplate) : (templates.data ?? []),
+    [tab, mine.data, templates.data],
   );
 
   return (
@@ -87,6 +93,7 @@ export default function PlansScreen() {
 function PlanCard({ plan }: { plan: WorkoutPlan }) {
   const router = useRouter();
   const colors = useThemeColors();
+  const duplicate = useDuplicatePlan();
   const totalExercises = plan.days.reduce((sum, d) => sum + d.exercises.length, 0);
 
   return (
@@ -117,6 +124,19 @@ function PlanCard({ plan }: { plan: WorkoutPlan }) {
           </AppText>
         </View>
       </View>
+      {plan.isTemplate ? (
+        <Button
+          label="Use this template"
+          size="sm"
+          loading={duplicate.isPending}
+          onPress={() =>
+            duplicate.mutate(plan.id, {
+              onSuccess: (copy) =>
+                router.push({ pathname: '/plan/[id]', params: { id: copy.id } }),
+            })
+          }
+        />
+      ) : null}
     </Card>
   );
 }
