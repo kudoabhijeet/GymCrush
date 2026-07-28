@@ -1,7 +1,7 @@
 import { Minus, Plus } from 'lucide-react-native';
-import { View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { TextInput, View } from 'react-native';
 import { useThemeColors } from '@/lib/theme';
-import { AppText } from './Text';
 import { PressableScale } from './PressableScale';
 
 interface NumberStepperProps {
@@ -14,7 +14,11 @@ interface NumberStepperProps {
   format?: (value: number) => string;
 }
 
-/** − value + control for servings, age, plate increments, etc. */
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+// Round to the step's precision to dodge float drift (0.1 + 0.2 …).
+const round = (n: number) => Math.round(n * 100) / 100;
+
+/** − value + control for servings, age, plate increments, etc. Value is also keyboard-editable. */
 export function NumberStepper({
   value,
   onChange,
@@ -24,11 +28,29 @@ export function NumberStepper({
   format,
 }: NumberStepperProps) {
   const colors = useThemeColors();
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(String(value));
+
+  // Keep the field in sync with external value changes (e.g. +/- taps) while not editing.
+  useEffect(() => {
+    if (!editing) setText(String(value));
+  }, [value, editing]);
 
   const adjust = (delta: number) => {
-    // Round to the step's precision to dodge float drift (0.1 + 0.2 …).
-    const next = Math.round((value + delta) * 100) / 100;
+    const next = round(value + delta);
     if (next < min || next > max) return;
+    onChange(next);
+  };
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = Number(text.replace(',', '.'));
+    if (Number.isNaN(parsed)) {
+      setText(String(value));
+      return;
+    }
+    const next = clamp(round(parsed), min, max);
+    setText(String(next));
     onChange(next);
   };
 
@@ -43,9 +65,21 @@ export function NumberStepper({
       >
         <Minus size={16} color={colors.content} strokeWidth={2.5} />
       </PressableScale>
-      <AppText className="min-w-[56px] text-center font-extrabold text-lg text-content">
-        {format ? format(value) : value}
-      </AppText>
+      <TextInput
+        value={editing ? text : format ? format(value) : String(value)}
+        onFocus={() => {
+          setEditing(true);
+          setText(String(value));
+        }}
+        onChangeText={setText}
+        onBlur={commit}
+        onSubmitEditing={commit}
+        selectTextOnFocus
+        keyboardType="decimal-pad"
+        returnKeyType="done"
+        accessibilityLabel="Value"
+        className="min-w-[56px] text-center font-extrabold text-lg text-content"
+      />
       <PressableScale
         onPress={() => adjust(step)}
         scaleTo={0.88}
