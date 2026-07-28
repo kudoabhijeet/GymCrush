@@ -36,6 +36,62 @@ export const FOOD_CATALOG: FoodSeed[] = [
   { name: 'Canned Tuna (in water)', servingLabel: '1 can (120g)', calories: 132, proteinG: 29, carbsG: 0, fatG: 1 },
   { name: 'Apple', servingLabel: '1 medium', calories: 95, proteinG: 0.5, carbsG: 25, fatG: 0.3 },
   { name: 'Olive Oil', servingLabel: '1 tbsp', calories: 119, proteinG: 0, carbsG: 0, fatG: 13.5 },
+
+  /* --- Indian staples: dals & legumes --- */
+  { name: 'Toor Dal (cooked)', servingLabel: '1 cup (200g)', calories: 180, proteinG: 12, carbsG: 28, fatG: 3 },
+  { name: 'Moong Dal (cooked)', servingLabel: '1 cup (200g)', calories: 150, proteinG: 10, carbsG: 25, fatG: 1.5 },
+  { name: 'Dal Makhani', servingLabel: '1 cup (200g)', calories: 320, proteinG: 11, carbsG: 30, fatG: 17 },
+  { name: 'Rajma (kidney bean curry)', servingLabel: '1 cup (200g)', calories: 220, proteinG: 10, carbsG: 35, fatG: 5 },
+  { name: 'Chana Masala', servingLabel: '1 cup (200g)', calories: 270, proteinG: 12, carbsG: 40, fatG: 7 },
+  { name: 'Sambar', servingLabel: '1 cup (200g)', calories: 140, proteinG: 7, carbsG: 20, fatG: 4 },
+  { name: 'Rasam', servingLabel: '1 cup (200g)', calories: 65, proteinG: 3, carbsG: 9, fatG: 2 },
+  { name: 'Roasted Chana', servingLabel: '30g', calories: 120, proteinG: 6, carbsG: 18, fatG: 2 },
+
+  /* --- Indian staples: breads --- */
+  { name: 'Roti / Chapati', servingLabel: '1 medium (40g)', calories: 85, proteinG: 3, carbsG: 18, fatG: 0.5 },
+  { name: 'Paratha (plain)', servingLabel: '1 medium (60g)', calories: 180, proteinG: 4, carbsG: 25, fatG: 7 },
+  { name: 'Aloo Paratha', servingLabel: '1 medium (100g)', calories: 260, proteinG: 6, carbsG: 36, fatG: 10 },
+  { name: 'Naan', servingLabel: '1 piece (90g)', calories: 260, proteinG: 8, carbsG: 45, fatG: 5 },
+  { name: 'Puri', servingLabel: '1 piece (25g)', calories: 100, proteinG: 2, carbsG: 12, fatG: 5 },
+
+  /* --- Indian staples: rice dishes --- */
+  { name: 'Steamed Rice (cooked)', servingLabel: '1 cup (150g)', calories: 200, proteinG: 4, carbsG: 44, fatG: 0.5 },
+  { name: 'Jeera Rice', servingLabel: '1 cup (150g)', calories: 220, proteinG: 4, carbsG: 42, fatG: 5 },
+  { name: 'Vegetable Biryani', servingLabel: '1 cup (200g)', calories: 280, proteinG: 6, carbsG: 45, fatG: 9 },
+  { name: 'Vegetable Pulao', servingLabel: '1 cup (200g)', calories: 250, proteinG: 5, carbsG: 42, fatG: 7 },
+  { name: 'Curd Rice', servingLabel: '1 cup (200g)', calories: 210, proteinG: 7, carbsG: 35, fatG: 5 },
+
+  /* --- Indian staples: sabzis --- */
+  { name: 'Aloo Gobi', servingLabel: '1 cup (150g)', calories: 150, proteinG: 3, carbsG: 20, fatG: 7 },
+  { name: 'Bhindi Masala', servingLabel: '1 cup (150g)', calories: 130, proteinG: 3, carbsG: 12, fatG: 8 },
+  { name: 'Palak (spinach sabzi)', servingLabel: '1 cup (150g)', calories: 120, proteinG: 5, carbsG: 10, fatG: 7 },
+  { name: 'Baingan Bharta', servingLabel: '1 cup (150g)', calories: 140, proteinG: 3, carbsG: 14, fatG: 8 },
+  { name: 'Mixed Vegetable Sabzi', servingLabel: '1 cup (150g)', calories: 125, proteinG: 4, carbsG: 15, fatG: 6 },
+
+  /* --- Indian staples: paneer, egg & meat --- */
+  { name: 'Paneer (raw)', servingLabel: '100g', calories: 265, proteinG: 18, carbsG: 6, fatG: 20 },
+  { name: 'Paneer Tikka', servingLabel: '100g', calories: 270, proteinG: 18, carbsG: 7, fatG: 19 },
+  { name: 'Palak Paneer', servingLabel: '1 cup (200g)', calories: 280, proteinG: 14, carbsG: 12, fatG: 20 },
+  { name: 'Paneer Butter Masala', servingLabel: '1 cup (200g)', calories: 350, proteinG: 14, carbsG: 14, fatG: 27 },
+  { name: 'Chicken Curry (home-style)', servingLabel: '1 cup (200g)', calories: 280, proteinG: 22, carbsG: 8, fatG: 18 },
+  { name: 'Butter Chicken', servingLabel: '1 cup (200g)', calories: 380, proteinG: 24, carbsG: 12, fatG: 27 },
+  { name: 'Tandoori Chicken', servingLabel: '2 pieces (150g)', calories: 240, proteinG: 30, carbsG: 4, fatG: 11 },
+  { name: 'Egg Curry', servingLabel: '1 cup with 2 eggs (200g)', calories: 260, proteinG: 15, carbsG: 10, fatG: 18 },
+
+  /* --- Indian staples: breakfast & snacks --- */
+  { name: 'Idli', servingLabel: '2 pieces (80g)', calories: 120, proteinG: 4, carbsG: 24, fatG: 0.5 },
+  { name: 'Masala Dosa', servingLabel: '1 piece (150g)', calories: 250, proteinG: 6, carbsG: 38, fatG: 8 },
+  { name: 'Poha', servingLabel: '1 cup (150g)', calories: 180, proteinG: 4, carbsG: 30, fatG: 6 },
+  { name: 'Upma', servingLabel: '1 cup (150g)', calories: 200, proteinG: 5, carbsG: 30, fatG: 7 },
+  { name: 'Dhokla', servingLabel: '2 pieces (60g)', calories: 120, proteinG: 4, carbsG: 20, fatG: 3 },
+  { name: 'Samosa', servingLabel: '1 piece (60g)', calories: 260, proteinG: 4, carbsG: 24, fatG: 17 },
+
+  /* --- Indian staples: accompaniments --- */
+  { name: 'Curd / Dahi (plain)', servingLabel: '1 cup (200g)', calories: 120, proteinG: 8, carbsG: 10, fatG: 5 },
+  { name: 'Cucumber Raita', servingLabel: '1/2 cup (100g)', calories: 50, proteinG: 3, carbsG: 5, fatG: 2 },
+  { name: 'Mint Chutney', servingLabel: '2 tbsp (30g)', calories: 15, proteinG: 0.5, carbsG: 3, fatG: 0.2 },
+  { name: 'Papad (roasted)', servingLabel: '1 piece (10g)', calories: 35, proteinG: 2, carbsG: 6, fatG: 0.3 },
+  { name: 'Ghee', servingLabel: '1 tsp (5g)', calories: 45, proteinG: 0, carbsG: 0, fatG: 5 },
 ];
 
 /* --------------------------- Plan fixtures ------------------------------- */
@@ -160,6 +216,208 @@ const FULL_BODY: PlanSeed = {
 };
 
 export const PLANS: Record<string, PlanSeed> = { ppl: PPL, ul: UPPER_LOWER, fb: FULL_BODY };
+
+/* -------------------------- Template plans ------------------------------- */
+
+const BEGINNER_FULL_BODY: PlanSeed = {
+  key: 'beginner-fb',
+  name: 'Full-Body Beginner',
+  description: 'Your first 3 months in the gym. Compound lifts, moderate reps, lots of practice.',
+  goal: 'general_fitness',
+  daysPerWeek: 3,
+  days: [
+    {
+      name: 'Day A',
+      exercises: [
+        { exercise: 'Bodyweight Squat', targetSets: 3, targetReps: '12-15', targetRpe: 6, restSeconds: 90 },
+        { exercise: 'Push-Up', targetSets: 3, targetReps: '8-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Lat Pulldown', targetSets: 3, targetReps: '10-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Plank', targetSets: 3, targetReps: '30s', targetRpe: null, restSeconds: 60 },
+      ],
+    },
+    {
+      name: 'Day B',
+      exercises: [
+        { exercise: 'Goblet Squat', targetSets: 3, targetReps: '10-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Dumbbell Shoulder Press', targetSets: 3, targetReps: '10-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Seated Cable Row', targetSets: 3, targetReps: '10-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Glute Bridge', targetSets: 3, targetReps: '12-15', targetRpe: 7, restSeconds: 60 },
+      ],
+    },
+    {
+      name: 'Day C',
+      exercises: [
+        { exercise: 'Leg Press', targetSets: 3, targetReps: '12-15', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Flat Dumbbell Press', targetSets: 3, targetReps: '10-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Inverted Row', targetSets: 3, targetReps: '8-12', targetRpe: 7, restSeconds: 90 },
+        { exercise: 'Dead Bug', targetSets: 3, targetReps: '10-12', targetRpe: null, restSeconds: 60 },
+      ],
+    },
+  ],
+};
+
+const BRO_SPLIT: PlanSeed = {
+  key: 'bro',
+  name: 'Bro Split',
+  description: 'One muscle group per day, 5 days a week. High volume, maximum pump.',
+  goal: 'hypertrophy',
+  daysPerWeek: 5,
+  days: [
+    {
+      name: 'Chest',
+      exercises: [
+        { exercise: 'Barbell Bench Press', targetSets: 4, targetReps: '8-10', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Incline Dumbbell Press', targetSets: 4, targetReps: '10-12', targetRpe: 8, restSeconds: 120 },
+        { exercise: 'Cable Fly', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 90 },
+        { exercise: 'Chest Dip', targetSets: 3, targetReps: '8-12', targetRpe: 9, restSeconds: 90 },
+      ],
+    },
+    {
+      name: 'Back',
+      exercises: [
+        { exercise: 'Pull-Up', targetSets: 4, targetReps: '6-10', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Barbell Row', targetSets: 4, targetReps: '8-10', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Seated Cable Row', targetSets: 3, targetReps: '10-12', targetRpe: 9, restSeconds: 90 },
+        { exercise: 'Straight-Arm Pulldown', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 75 },
+      ],
+    },
+    {
+      name: 'Shoulders',
+      exercises: [
+        { exercise: 'Overhead Press', targetSets: 4, targetReps: '8-10', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Lateral Raise', targetSets: 4, targetReps: '12-15', targetRpe: 9, restSeconds: 75 },
+        { exercise: 'Rear Delt Fly', targetSets: 3, targetReps: '15-20', targetRpe: 9, restSeconds: 60 },
+        { exercise: 'Barbell Shrug', targetSets: 3, targetReps: '10-12', targetRpe: 8, restSeconds: 90 },
+      ],
+    },
+    {
+      name: 'Legs',
+      exercises: [
+        { exercise: 'Barbell Back Squat', targetSets: 4, targetReps: '8-10', targetRpe: 8, restSeconds: 180 },
+        { exercise: 'Romanian Deadlift', targetSets: 3, targetReps: '10-12', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Leg Extension', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 90 },
+        { exercise: 'Seated Leg Curl', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 90 },
+        { exercise: 'Standing Calf Raise', targetSets: 4, targetReps: '12-15', targetRpe: 9, restSeconds: 60 },
+      ],
+    },
+    {
+      name: 'Arms',
+      exercises: [
+        { exercise: 'Barbell Curl', targetSets: 4, targetReps: '10-12', targetRpe: 9, restSeconds: 90 },
+        { exercise: 'Close-Grip Bench Press', targetSets: 4, targetReps: '8-10', targetRpe: 8, restSeconds: 120 },
+        { exercise: 'Hammer Curl', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 75 },
+        { exercise: 'Rope Overhead Extension', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 75 },
+      ],
+    },
+  ],
+};
+
+const POWERLIFTING: PlanSeed = {
+  key: 'pl',
+  name: 'Powerlifting Focus',
+  description: 'Squat, bench, deadlift. Heavy low-rep work with long rest and accessory support.',
+  goal: 'strength',
+  daysPerWeek: 4,
+  days: [
+    {
+      name: 'Squat Day',
+      exercises: [
+        { exercise: 'Barbell Back Squat', targetSets: 5, targetReps: '3-5', targetRpe: 8, restSeconds: 300 },
+        { exercise: 'Front Squat', targetSets: 3, targetReps: '5-6', targetRpe: 7, restSeconds: 240 },
+        { exercise: 'Leg Press', targetSets: 3, targetReps: '8-10', targetRpe: 8, restSeconds: 180 },
+        { exercise: 'Hanging Leg Raise', targetSets: 3, targetReps: '10-15', targetRpe: 8, restSeconds: 90 },
+      ],
+    },
+    {
+      name: 'Bench Day',
+      exercises: [
+        { exercise: 'Barbell Bench Press', targetSets: 5, targetReps: '3-5', targetRpe: 8, restSeconds: 300 },
+        { exercise: 'Close-Grip Bench Press', targetSets: 3, targetReps: '6-8', targetRpe: 8, restSeconds: 210 },
+        { exercise: 'Barbell Row', targetSets: 4, targetReps: '6-8', targetRpe: 8, restSeconds: 180 },
+        { exercise: 'Triceps Pushdown', targetSets: 3, targetReps: '10-12', targetRpe: 9, restSeconds: 90 },
+      ],
+    },
+    {
+      name: 'Deadlift Day',
+      exercises: [
+        { exercise: 'Conventional Deadlift', targetSets: 4, targetReps: '3-5', targetRpe: 8, restSeconds: 300 },
+        { exercise: 'Good Morning', targetSets: 3, targetReps: '8-10', targetRpe: 7, restSeconds: 210 },
+        { exercise: 'Chest-Supported Row', targetSets: 3, targetReps: '8-10', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Back Extension', targetSets: 3, targetReps: '12-15', targetRpe: 8, restSeconds: 90 },
+      ],
+    },
+    {
+      name: 'Overhead Day',
+      exercises: [
+        { exercise: 'Overhead Press', targetSets: 5, targetReps: '3-5', targetRpe: 8, restSeconds: 240 },
+        { exercise: 'Incline Barbell Bench Press', targetSets: 3, targetReps: '6-8', targetRpe: 8, restSeconds: 210 },
+        { exercise: 'Pull-Up', targetSets: 4, targetReps: '6-10', targetRpe: 8, restSeconds: 150 },
+        { exercise: 'Face Pull', targetSets: 3, targetReps: '15-20', targetRpe: 9, restSeconds: 60 },
+      ],
+    },
+  ],
+};
+
+const HOME_BODYWEIGHT: PlanSeed = {
+  key: 'home',
+  name: 'Home / Bodyweight',
+  description: 'No gym needed. Bodyweight and resistance bands only — train anywhere.',
+  goal: 'general_fitness',
+  daysPerWeek: 4,
+  days: [
+    {
+      name: 'Push',
+      exercises: [
+        { exercise: 'Push-Up', targetSets: 4, targetReps: '10-20', targetRpe: 8, restSeconds: 90 },
+        { exercise: 'Band Overhead Press', targetSets: 3, targetReps: '12-15', targetRpe: 8, restSeconds: 75 },
+        { exercise: 'Band Chest Press', targetSets: 3, targetReps: '12-15', targetRpe: 8, restSeconds: 75 },
+        { exercise: 'Triceps Dip', targetSets: 3, targetReps: '8-15', targetRpe: 9, restSeconds: 75 },
+      ],
+    },
+    {
+      name: 'Pull',
+      exercises: [
+        { exercise: 'Band-Assisted Pull-Up', targetSets: 4, targetReps: '6-10', targetRpe: 8, restSeconds: 120 },
+        { exercise: 'Band Row', targetSets: 4, targetReps: '12-15', targetRpe: 8, restSeconds: 75 },
+        { exercise: 'Band Pull-Apart', targetSets: 3, targetReps: '15-20', targetRpe: 8, restSeconds: 60 },
+        { exercise: 'Band Bicep Curl', targetSets: 3, targetReps: '12-15', targetRpe: 9, restSeconds: 60 },
+      ],
+    },
+    {
+      name: 'Legs',
+      exercises: [
+        { exercise: 'Bodyweight Squat', targetSets: 4, targetReps: '15-25', targetRpe: 8, restSeconds: 90 },
+        { exercise: 'Walking Lunge', targetSets: 3, targetReps: '12-16', targetRpe: 8, restSeconds: 90 },
+        { exercise: 'Glute Bridge', targetSets: 3, targetReps: '15-20', targetRpe: 8, restSeconds: 60 },
+        { exercise: 'Band Lateral Walk', targetSets: 3, targetReps: '15-20', targetRpe: 8, restSeconds: 60 },
+      ],
+    },
+    {
+      name: 'Core & Conditioning',
+      exercises: [
+        { exercise: 'Burpee', targetSets: 4, targetReps: '10-15', targetRpe: 8, restSeconds: 90 },
+        { exercise: 'Mountain Climber', targetSets: 3, targetReps: '30s', targetRpe: 8, restSeconds: 60 },
+        { exercise: 'Plank', targetSets: 3, targetReps: '45s', targetRpe: null, restSeconds: 60 },
+        { exercise: 'Bicycle Crunch', targetSets: 3, targetReps: '15-20', targetRpe: 8, restSeconds: 60 },
+      ],
+    },
+  ],
+};
+
+/**
+ * Curated plans seeded as global templates (owned by the system user).
+ * Every exercise name here must exist in the global catalog — the seed resolves
+ * names to ids and throws on a miss.
+ */
+export const TEMPLATE_PLANS: PlanSeed[] = [
+  PPL,
+  UPPER_LOWER,
+  FULL_BODY,
+  BEGINNER_FULL_BODY,
+  BRO_SPLIT,
+  POWERLIFTING,
+  HOME_BODYWEIGHT,
+];
 
 /* -------------------------- Session fixtures ----------------------------- */
 
