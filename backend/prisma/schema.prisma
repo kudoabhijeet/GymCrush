@@ -78,9 +78,16 @@ enum Meal {
  */
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
+  /// Maps to Supabase `auth.users.id`. Null for service accounts that must never
+  /// be able to log in (see `system@gymcrush.app`, which owns the curated
+  /// templates). Deliberately NOT a real FK: that would need Prisma's multiSchema
+  /// preview and put GoTrue's own tables under Prisma migration control.
+  authUserId   String?  @unique @db.Uuid
   email        String   @unique
-  passwordHash String
+  /// Legacy bcrypt hash from the pre-Supabase auth. Nulled once a user is
+  /// imported into `auth.users`; the column is dropped after full cutover.
+  passwordHash String?
   displayName  String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

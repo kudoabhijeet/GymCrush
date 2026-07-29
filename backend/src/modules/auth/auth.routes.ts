@@ -53,3 +53,14 @@ authRouter.get(
     res.json({ user });
   }),
 );
+
+// DELETE /api/auth/account — permanent, irreversible. Required by the App Store.
+authRouter.delete(
+  '/account',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    await authService.deleteAccount(userId);
+    res.status(204).send();
+  }),
+);

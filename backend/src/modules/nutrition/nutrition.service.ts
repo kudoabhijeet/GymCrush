@@ -9,6 +9,7 @@ import {
   type UpsertBodyProfileInput,
 } from '@gymcrush/shared';
 import { prisma } from '../../db/prisma.js';
+import { TtlCache } from '../../lib/cache.js';
 import { notFound } from '../../lib/errors.js';
 import { mapBodyProfile, mapFood, mapMacroTarget } from '../../lib/mappers.js';
 
@@ -61,20 +62,42 @@ export async function setMacroTarget(userId: string, input: MacroTarget): Promis
 
 /* --------------------------------- Foods --------------------------------- */
 
+/**
+ * Food search runs on every keystroke, so serving it from memory matters more
+ * here than anywhere else. The seeded catalog is the same for everyone and only
+ * changes on a re-seed; a user's custom foods are cached per user and evicted
+ * when they add one.
+ */
+const FOOD_CACHE_TTL_MS = 10 * 60_000;
+const globalFoods = new TtlCache<Food[]>(FOOD_CACHE_TTL_MS, 1);
+const customFoodsByUser = new TtlCache<Food[]>(FOOD_CACHE_TTL_MS, 2000);
+
+function loadGlobalFoods(): Promise<Food[]> {
+  return globalFoods.getOrLoad('global', async () => {
+    const rows = await prisma.food.findMany({ where: { ownerId: null } });
+    return rows.map(mapFood);
+  });
+}
+
+function loadCustomFoods(userId: string): Promise<Food[]> {
+  return customFoodsByUser.getOrLoad(userId, async () => {
+    const rows = await prisma.food.findMany({ where: { ownerId: userId } });
+    return rows.map(mapFood);
+  });
+}
+
 /** Global foods plus the user's custom ones, filtered by name. */
 export async function listFoods(userId: string, search?: string): Promise<Food[]> {
-  const rows = await prisma.food.findMany({
-    where: {
-      OR: [{ ownerId: null }, { ownerId: userId }],
-      ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
-    },
-    orderBy: { name: 'asc' },
-  });
-  return rows.map(mapFood);
+  const [global, custom] = await Promise.all([loadGlobalFoods(), loadCustomFoods(userId)]);
+  const needle = search?.trim().toLowerCase();
+  return [...global, ...custom]
+    .filter((f) => (needle ? f.name.toLowerCase().includes(needle) : true))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createFood(userId: string, input: CreateFoodInput): Promise<Food> {
   const row = await prisma.food.create({ data: { ownerId: userId, ...input } });
+  customFoodsByUser.delete(userId);
   return mapFood(row);
 }
 
