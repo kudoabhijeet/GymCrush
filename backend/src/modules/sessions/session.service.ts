@@ -35,6 +35,7 @@ export async function startSession(
       name: input.name,
       planId: input.planId ?? null,
       planDayId: input.planDayId ?? null,
+      ...(input.startedAt ? { startedAt: new Date(input.startedAt) } : {}),
       exercises: exerciseCreate.length ? { create: exerciseCreate } : undefined,
     },
     include: sessionInclude,

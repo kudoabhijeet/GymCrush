@@ -221,6 +221,7 @@ export const useActiveSessionStore = create<ActiveSessionState>((set, get) => ({
         body: {
           name: session.name,
           ...(session.planId ? { planId: session.planId } : {}),
+          startedAt: new Date(session.startedAt).toISOString(),
         },
       });
 

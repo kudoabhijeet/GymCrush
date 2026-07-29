@@ -134,6 +134,7 @@ export const startSessionSchema = z.object({
   name: z.string().min(1).max(80),
   planId: z.string().optional(),
   planDayId: z.string().optional(),
+  startedAt: z.string().datetime().optional(),
 });
 export type StartSessionInput = z.infer<typeof startSessionSchema>;
 
