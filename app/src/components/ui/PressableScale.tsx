@@ -7,16 +7,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-// Don't register this with NativeWind's `cssInterop`. The interop resolves
-// `className` into the `style` prop, which then loses to the animated `style`
-// passed below — buttons render with their padding, radius and background
-// stripped, and some lose their children entirely. NativeWind already handles
-// `className` here on its own.
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 // NativeWind doesn't auto-register Reanimated-wrapped components for className->style
-// interop, so without this the padding/sizing classes never become real hitbox/layout —
-// only a plain-Text child inside would render, making the button tappable only on its label.
-cssInterop(AnimatedPressable, { className: 'style' });
+// interop, so without registering it the padding/sizing classes never become real
+// hitbox/layout — only a plain-Text child inside would render, making the button
+// tappable only on its label.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface PressableScaleProps extends PressableProps {
   /** Scale when pressed. Default 0.97 — subtle, production feel. */
@@ -24,17 +19,25 @@ interface PressableScaleProps extends PressableProps {
   className?: string;
 }
 
-/**
- * Pressable with a spring scale-down on press. Reanimated drives `style`
- * (never className) — className stays for static NativeWind styles.
- */
-export function PressableScale({
+interface PressableScaleInnerProps extends PressableScaleProps {
+  cssStyle?: object;
+}
+
+// Mapping className straight to `style` (the obvious approach) resolves className
+// into the `style` prop by fully replacing it rather than merging — cssInterop
+// does `{ ...props, ...possiblyAnimatedProps }` internally, so the resolved
+// className style clobbers whatever was already in `style`, stripping the
+// Reanimated scale transform below. See nativewind/nativewind#957. Routing
+// className to this dedicated `cssStyle` prop and merging it into the style
+// array ourselves avoids the clobber.
+function PressableScaleInner({
   scaleTo = 0.97,
   onPressIn,
   onPressOut,
   style,
+  cssStyle,
   ...rest
-}: PressableScaleProps) {
+}: PressableScaleInnerProps) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -43,7 +46,7 @@ export function PressableScale({
 
   return (
     <AnimatedPressable
-      style={[animatedStyle, style as object]}
+      style={[cssStyle, animatedStyle, style as object]}
       onPressIn={(e) => {
         scale.value = withTiming(scaleTo, { duration: 80 });
         onPressIn?.(e);
@@ -55,4 +58,14 @@ export function PressableScale({
       {...rest}
     />
   );
+}
+
+cssInterop(PressableScaleInner, { className: 'cssStyle' });
+
+/**
+ * Pressable with a spring scale-down on press. Reanimated drives `style`
+ * (never className) — className stays for static NativeWind styles.
+ */
+export function PressableScale(props: PressableScaleProps) {
+  return <PressableScaleInner {...props} />;
 }
