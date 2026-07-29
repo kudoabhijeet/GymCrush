@@ -2,7 +2,7 @@
   "expo": {
     "name": "GymCrush",
     "slug": "gymcrush",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "orientation": "portrait",
     "scheme": "gymcrush",
     "userInterfaceStyle": "automatic",
@@ -13,7 +13,7 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "2"
+      "buildNumber": "4"
     },
     "android": {
       "package": "com.kudoabhijeet.gymcrush",
