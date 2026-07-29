@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateExerciseInput, Exercise, MuscleGroup } from '@gymcrush/shared';
 import { api } from '@/lib/api';
+import { CATALOG_GC_MS, CATALOG_STALE_MS } from '@/lib/queryClient';
 
 /**
  * Module-level catalog cache. `exerciseLookup(id)` is called synchronously from
@@ -32,7 +33,8 @@ export function useExerciseCatalog(enabled = true) {
       const { exercises } = await api<{ exercises: Exercise[] }>('/api/exercises');
       return exercises;
     },
-    staleTime: 5 * 60_000,
+    staleTime: CATALOG_STALE_MS,
+    gcTime: CATALOG_GC_MS,
   });
 
   useEffect(() => {
@@ -55,6 +57,11 @@ export function useExercises(search = '', muscleGroup?: MuscleGroup) {
       );
       return exercises;
     },
+    staleTime: CATALOG_STALE_MS,
+    gcTime: CATALOG_GC_MS,
+    // Keep showing the previous matches while the next query resolves, so the
+    // list doesn't flash empty between keystrokes.
+    placeholderData: (prev) => prev,
   });
 
   useEffect(() => {

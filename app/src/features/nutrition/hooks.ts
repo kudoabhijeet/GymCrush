@@ -11,6 +11,7 @@ import type {
   WeightEntry,
 } from '@gymcrush/shared';
 import { api } from '@/lib/api';
+import { CATALOG_GC_MS, CATALOG_STALE_MS } from '@/lib/queryClient';
 
 export interface ProfileWithTarget {
   profile: BodyProfile;
@@ -59,6 +60,10 @@ export function useFoods(search = '') {
       const { foods } = await api<{ foods: Food[] }>(`/api/nutrition/foods${qs}`);
       return foods;
     },
+    staleTime: CATALOG_STALE_MS,
+    gcTime: CATALOG_GC_MS,
+    // Hold the previous matches while the next search resolves.
+    placeholderData: (prev) => prev,
   });
 }
 

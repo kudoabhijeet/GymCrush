@@ -16,6 +16,7 @@ import { TextField } from '@/components/ui/TextField';
 import { useThemeColors } from '@/lib/theme';
 import type { Meal } from '@gymcrush/shared';
 import { localDateKey } from '@/lib/format';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useAddFoodEntry, useFoods } from '@/features/nutrition/hooks';
 
 const MEALS: { value: Meal; label: string }[] = [
@@ -35,7 +36,8 @@ export default function FoodSearchScreen() {
   const [selected, setSelected] = useState<Food | null>(null);
   const [servings, setServings] = useState(1);
   const [meal, setMeal] = useState<Meal>(params.meal ?? 'breakfast');
-  const { data: foods, isLoading } = useFoods(search);
+  // The input stays instant; only the query key waits for a pause in typing.
+  const { data: foods, isLoading } = useFoods(useDebouncedValue(search));
   const addEntry = useAddFoodEntry();
 
   const onAdd = () => {

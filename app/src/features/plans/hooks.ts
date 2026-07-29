@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UpsertPlanInput, WorkoutPlan } from '@gymcrush/shared';
 import { api } from '@/lib/api';
+import { CATALOG_GC_MS, TEMPLATE_STALE_MS } from '@/lib/queryClient';
 
 export function usePlans() {
   return useQuery({
@@ -20,6 +21,9 @@ export function useTemplates() {
       const { plans } = await api<{ plans: WorkoutPlan[] }>('/api/plans?templatesOnly=true');
       return plans;
     },
+    // Curated templates only change on a re-seed.
+    staleTime: TEMPLATE_STALE_MS,
+    gcTime: CATALOG_GC_MS,
   });
 }
 

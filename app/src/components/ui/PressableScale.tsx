@@ -7,6 +7,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+// Don't register this with NativeWind's `cssInterop`. The interop resolves
+// `className` into the `style` prop, which then loses to the animated `style`
+// passed below — buttons render with their padding, radius and background
+// stripped, and some lose their children entirely. NativeWind already handles
+// `className` here on its own.
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 // NativeWind doesn't auto-register Reanimated-wrapped components for className->style
 // interop, so without this the padding/sizing classes never become real hitbox/layout —

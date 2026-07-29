@@ -1,5 +1,6 @@
 import type { PlanExplorerQuery, UpsertPlanInput, WorkoutPlan } from '@gymcrush/shared';
 import { prisma } from '../../db/prisma.js';
+import { TtlCache } from '../../lib/cache.js';
 import { notFound } from '../../lib/errors.js';
 import { mapPlan } from '../../lib/mappers.js';
 
@@ -24,16 +25,40 @@ function daysCreate(input: UpsertPlanInput) {
   }));
 }
 
+/**
+ * The curated templates are the same rows for every user and only change on a
+ * re-seed, but they're read on every visit to the Explore tab and carry a nested
+ * day/exercise tree — the most expensive read in the app to repeat. Personal
+ * plans are deliberately *not* cached: they're user-specific and edited often,
+ * so the correctness risk outweighs the saving.
+ */
+const templateCache = new TtlCache<WorkoutPlan[]>(10 * 60_000, 1);
+
+function loadTemplates(): Promise<WorkoutPlan[]> {
+  return templateCache.getOrLoad('templates', async () => {
+    const rows = await prisma.workoutPlan.findMany({
+      where: { isTemplate: true },
+      include: planInclude,
+      orderBy: { updatedAt: 'desc' },
+    });
+    return rows.map(mapPlan);
+  });
+}
+
 /** The user's own plans plus any templates, with optional explorer filters. */
 export async function listPlans(
   userId: string,
   filters: PlanExplorerQuery,
 ): Promise<WorkoutPlan[]> {
+  if (filters.templatesOnly) {
+    return (await loadTemplates())
+      .filter((p) => (filters.goal ? p.goal === filters.goal : true))
+      .filter((p) => (filters.daysPerWeek ? p.daysPerWeek === filters.daysPerWeek : true));
+  }
+
   const rows = await prisma.workoutPlan.findMany({
     where: {
-      OR: filters.templatesOnly
-        ? [{ isTemplate: true }]
-        : [{ ownerId: userId }, { isTemplate: true }],
+      OR: [{ ownerId: userId }, { isTemplate: true }],
       ...(filters.goal ? { goal: filters.goal } : {}),
       ...(filters.daysPerWeek ? { daysPerWeek: filters.daysPerWeek } : {}),
     },

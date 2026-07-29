@@ -12,6 +12,7 @@ import { ListRow } from '@/components/ui/ListRow';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { TextField } from '@/components/ui/TextField';
 import { useThemeColors } from '@/lib/theme';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useExercises } from '@/features/exercises/hooks';
 import { useExercisePickerStore } from '@/features/exercises/pickerStore';
 
@@ -34,7 +35,8 @@ export default function ExercisePickerScreen() {
   const resolve = useExercisePickerStore((s) => s.resolve);
   const [search, setSearch] = useState('');
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>();
-  const { data: exercises, isLoading } = useExercises(search, muscleGroup);
+  // The input stays instant; only the query key waits for a pause in typing.
+  const { data: exercises, isLoading } = useExercises(useDebouncedValue(search), muscleGroup);
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>

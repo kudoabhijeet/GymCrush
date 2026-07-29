@@ -11,15 +11,13 @@ export function asyncHandler<T extends (req: Request, res: Response, next: NextF
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     return res.status(err.status).json({ error: err.message, details: err.details });
   }
-  req_log(err);
+  // pino-http attaches req.log; fall back to console if the logger isn't mounted
+  // (e.g. a unit test constructing the handler directly).
+  if (req.log) req.log.error({ err }, 'Unhandled error');
+  else console.error(err);
   return res.status(500).json({ error: 'Internal server error' });
-}
-
-function req_log(err: unknown) {
-  // Central place to hook Sentry/pino later.
-  console.error(err);
 }
