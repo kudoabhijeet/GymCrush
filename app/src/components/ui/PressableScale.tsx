@@ -1,3 +1,4 @@
+import { cssInterop } from 'nativewind';
 import { Pressable, type PressableProps } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -12,6 +13,10 @@ import Animated, {
 // stripped, and some lose their children entirely. NativeWind already handles
 // `className` here on its own.
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+// NativeWind doesn't auto-register Reanimated-wrapped components for className->style
+// interop, so without this the padding/sizing classes never become real hitbox/layout —
+// only a plain-Text child inside would render, making the button tappable only on its label.
+cssInterop(AnimatedPressable, { className: 'style' });
 
 interface PressableScaleProps extends PressableProps {
   /** Scale when pressed. Default 0.97 — subtle, production feel. */
