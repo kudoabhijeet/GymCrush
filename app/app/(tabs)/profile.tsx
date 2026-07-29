@@ -167,7 +167,7 @@ export default function ProfileScreen() {
       </ListGroup>
 
       <AppText variant="caption" className="text-center">
-        GymCrush v0.1.0
+        GymCrush v0.1.1
       </AppText>
     </ScreenScaffold>
   );
