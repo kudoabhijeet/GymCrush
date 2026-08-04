@@ -17,6 +17,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 /** Load the user's server-side profile + targets into the profile store. */
@@ -95,6 +96,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     const tokens = await tokenStore.get();
     if (tokens) await authApi.logout(tokens.refreshToken).catch(() => {});
+    await tokenStore.clear();
+    useProfileStore.getState().clear();
+    set({ user: null, status: 'unauthenticated' });
+  },
+
+  deleteAccount: async () => {
+    await authApi.deleteAccount();
     await tokenStore.clear();
     useProfileStore.getState().clear();
     set({ user: null, status: 'unauthenticated' });

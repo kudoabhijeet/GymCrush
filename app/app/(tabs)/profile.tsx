@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { colorScheme } from 'nativewind';
 import {
   Bell,
   ChevronRight,
+  FileText,
   Flame,
+  LifeBuoy,
   LogOut,
   Ruler,
   Scale,
+  Shield,
   Target,
+  Trash2,
   UserRound,
 } from 'lucide-react-native';
 import { AppText } from '@/components/ui/Text';
@@ -26,14 +32,40 @@ type ThemeChoice = 'system' | 'light' | 'dark';
 
 export default function ProfileScreen() {
   const colors = useThemeColors();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const { bodyProfile, macroTarget, units, setUnits, resetOnboarding } = useProfileStore();
   const [theme, setTheme] = useState<ThemeChoice>('system');
+  const [deleting, setDeleting] = useState(false);
 
   const changeTheme = (choice: ThemeChoice) => {
     setTheme(choice);
     colorScheme.set(choice);
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your account and everything in it — plans, workouts, food and weight logs. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+            } catch {
+              setDeleting(false);
+              Alert.alert('Could not delete account', 'Something went wrong. Please try again.');
+            }
+          },
+        },
+      ],
+    );
   };
 
   const initials =
@@ -166,8 +198,57 @@ export default function ProfileScreen() {
         />
       </ListGroup>
 
+      {/* Support & legal */}
+      <View className="gap-2">
+        <AppText variant="label">Support & legal</AppText>
+        <ListGroup>
+          <ListRow
+            title="Report a problem"
+            subtitle="Something broken or confusing?"
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                <LifeBuoy size={18} color={colors.contentMuted} />
+              </View>
+            }
+            onPress={() => router.push('/report-problem')}
+          />
+          <ListSeparator />
+          <ListRow
+            title="Terms & Conditions"
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                <FileText size={18} color={colors.contentMuted} />
+              </View>
+            }
+            onPress={() => router.push('/legal/terms')}
+          />
+          <ListSeparator />
+          <ListRow
+            title="Privacy Policy"
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                <Shield size={18} color={colors.contentMuted} />
+              </View>
+            }
+            onPress={() => router.push('/legal/privacy')}
+          />
+          <ListSeparator />
+          <ListRow
+            title={deleting ? 'Deleting account…' : 'Delete my account'}
+            subtitle="Permanently erases your account and data"
+            destructive
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-danger/10">
+                <Trash2 size={18} color={colors.danger} />
+              </View>
+            }
+            onPress={deleting ? undefined : confirmDeleteAccount}
+          />
+        </ListGroup>
+      </View>
+
       <AppText variant="caption" className="text-center">
-        GymCrush v0.1.1
+        GymCrush v{Constants.expoConfig?.version ?? '—'}
       </AppText>
     </ScreenScaffold>
   );
