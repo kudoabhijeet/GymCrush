@@ -10,6 +10,15 @@ import { api } from '@/lib/api';
  */
 let sessionsCache: WorkoutSession[] = [];
 
+/**
+ * Must be called on sign-out: this cache seeds ghosted "previous" values that
+ * get adopted into new sets, so leaving it warm would write one account's
+ * history into the next account that signs in on this device.
+ */
+export function clearSessionsCache() {
+  sessionsCache = [];
+}
+
 async function fetchSessions(limit = 50): Promise<WorkoutSession[]> {
   const { sessions } = await api<{ sessions: WorkoutSession[] }>(`/api/sessions?limit=${limit}`);
   return sessions;
@@ -80,11 +89,38 @@ export function useExerciseHistory(exerciseId: string | undefined) {
   });
 }
 
+/** Epley estimated 1RM — the app's single definition of "best" for a set. */
+export function e1rmOf(weight: number | null, reps: number | null): number {
+  return Math.round((weight ?? 0) * (1 + (reps ?? 0) / 30) * 10) / 10;
+}
+
+/**
+ * Best e1RM ever recorded for an exercise, or null if it has never been trained.
+ * Reads the module cache synchronously (same constraint as `previousSetsFor`) so
+ * the active-session store can detect a PR the moment a set is completed.
+ */
+export function bestE1rmFor(exerciseId: string): number | null {
+  let best: number | null = null;
+  for (const session of sessionsCache) {
+    for (const logged of session.exercises) {
+      if (logged.exerciseId !== exerciseId) continue;
+      for (const s of logged.sets) {
+        if (!s.completed || s.isWarmup) continue;
+        const e1rm = e1rmOf(s.weight, s.reps);
+        if (best === null || e1rm > best) best = e1rm;
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * Most recent completed working sets for an exercise (for ghost "previous"
  * values). Reads the module cache synchronously — kept warm by `useSessions`.
  */
-export function previousSetsFor(exerciseId: string): { weight: number | null; reps: number | null }[] {
+export function previousSetsFor(
+  exerciseId: string,
+): { weight: number | null; reps: number | null }[] {
   const sorted = [...sessionsCache].sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
   );

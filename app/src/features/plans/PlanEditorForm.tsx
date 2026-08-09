@@ -29,7 +29,10 @@ interface DraftExercise {
   exerciseId: string;
   targetSets: number;
   targetReps: string;
+  /** Carried through saves untouched — the server nulls anything omitted. */
+  targetRpe: number | null;
   restSeconds: number | null;
+  notes: string | null;
 }
 
 interface DraftDay {
@@ -62,7 +65,9 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
         exerciseId: e.exerciseId,
         targetSets: e.targetSets,
         targetReps: e.targetReps,
+        targetRpe: e.targetRpe,
         restSeconds: e.restSeconds,
+        notes: e.notes,
       })),
     })) ?? [{ name: 'Day 1', exercises: [] }],
   );
@@ -80,7 +85,14 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
                 ...d,
                 exercises: [
                   ...d.exercises,
-                  { exerciseId: exercise.id, targetSets: 3, targetReps: '8-12', restSeconds: 120 },
+                  {
+                    exerciseId: exercise.id,
+                    targetSets: 3,
+                    targetReps: '8-12',
+                    targetRpe: null,
+                    restSeconds: 120,
+                    notes: null,
+                  },
                 ],
               }
             : d,
@@ -115,7 +127,9 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
           order: ei,
           targetSets: e.targetSets,
           targetReps: e.targetReps.trim() || '8-12',
+          targetRpe: e.targetRpe,
           restSeconds: e.restSeconds,
+          notes: e.notes?.trim() || null,
         })),
       })),
     };
@@ -126,14 +140,24 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
           if (plan) router.back();
           else router.replace({ pathname: '/plan/[id]', params: { id: saved.id } });
         },
+        onError: () => setError("Couldn't save the plan. Check your details and try again."),
       },
     );
   };
 
   return (
     <View className="flex-1">
-      <ScrollView contentContainerClassName="gap-5 px-5 pb-36 pt-2" showsVerticalScrollIndicator={false}>
-        <TextField label="Plan name" value={name} onChangeText={setName} placeholder="e.g. Push Pull Legs" error={error ?? undefined} />
+      <ScrollView
+        contentContainerClassName="gap-5 px-5 pb-36 pt-2"
+        showsVerticalScrollIndicator={false}
+      >
+        <TextField
+          label="Plan name"
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Push Pull Legs"
+          error={error ?? undefined}
+        />
         <TextField
           label="Description (optional)"
           value={description}
@@ -146,7 +170,12 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
           <AppText variant="label">Goal</AppText>
           <View className="flex-row flex-wrap gap-2">
             {GOALS.map((g) => (
-              <Chip key={g.value} label={g.label} selected={goal === g.value} onPress={() => setGoal(g.value)} />
+              <Chip
+                key={g.value}
+                label={g.label}
+                selected={goal === g.value}
+                onPress={() => setGoal(g.value)}
+              />
             ))}
           </View>
         </View>
@@ -160,7 +189,11 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
           <Card key={dayIndex} className="gap-3">
             <View className="flex-row items-center gap-3">
               <View className="flex-1">
-                <TextField value={day.name} onChangeText={(t) => updateDay(dayIndex, { name: t })} placeholder={`Day ${dayIndex + 1}`} />
+                <TextField
+                  value={day.name}
+                  onChangeText={(t) => updateDay(dayIndex, { name: t })}
+                  placeholder={`Day ${dayIndex + 1}`}
+                />
               </View>
               {days.length > 1 ? (
                 <IconButton
@@ -222,6 +255,22 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
                       />
                     </View>
                   </View>
+                  <View className="gap-1">
+                    <AppText variant="caption">Notes</AppText>
+                    <TextField
+                      value={exercise.notes ?? ''}
+                      onChangeText={(t) =>
+                        updateDay(dayIndex, {
+                          exercises: day.exercises.map((e, i) =>
+                            i === exIndex ? { ...e, notes: t } : e,
+                          ),
+                        })
+                      }
+                      placeholder="Cues, tempo, setup…"
+                      multiline
+                      maxLength={500}
+                    />
+                  </View>
                 </View>
               );
             })}
@@ -240,12 +289,19 @@ export function PlanEditorForm({ plan }: PlanEditorFormProps) {
           label="Add day"
           variant="ghost"
           icon={<Plus size={16} color={colors.contentMuted} />}
-          onPress={() => setDays((prev) => [...prev, { name: `Day ${prev.length + 1}`, exercises: [] }])}
+          onPress={() =>
+            setDays((prev) => [...prev, { name: `Day ${prev.length + 1}`, exercises: [] }])
+          }
         />
       </ScrollView>
 
       <View className="absolute bottom-0 left-0 right-0 border-t border-surface-muted bg-surface px-5 pb-8 pt-3">
-        <Button label={plan ? 'Save changes' : 'Create plan'} size="lg" loading={savePlan.isPending} onPress={onSave} />
+        <Button
+          label={plan ? 'Save changes' : 'Create plan'}
+          size="lg"
+          loading={savePlan.isPending}
+          onPress={onSave}
+        />
       </View>
     </View>
   );

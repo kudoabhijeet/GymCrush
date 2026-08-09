@@ -66,7 +66,10 @@ export default function LogScreen() {
       prescriptions: day.exercises.map((e) => ({
         exerciseId: e.exerciseId,
         targetSets: e.targetSets,
+        targetReps: e.targetReps,
+        targetRpe: e.targetRpe,
         restSeconds: e.restSeconds,
+        notes: e.notes,
       })),
     });
     router.push('/workout/active');

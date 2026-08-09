@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { colorScheme } from 'nativewind';
 import {
   Bell,
   ChevronRight,
@@ -28,22 +27,15 @@ import { formatWeight } from '@/lib/format';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 
-type ThemeChoice = 'system' | 'light' | 'dark';
-
 export default function ProfileScreen() {
   const colors = useThemeColors();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
-  const { bodyProfile, macroTarget, units, setUnits, resetOnboarding } = useProfileStore();
-  const [theme, setTheme] = useState<ThemeChoice>('system');
+  const { bodyProfile, macroTarget, units, setUnits, theme, setTheme, resetOnboarding } =
+    useProfileStore();
   const [deleting, setDeleting] = useState(false);
-
-  const changeTheme = (choice: ThemeChoice) => {
-    setTheme(choice);
-    colorScheme.set(choice);
-  };
 
   const confirmDeleteAccount = () => {
     Alert.alert(
@@ -156,7 +148,7 @@ export default function ProfileScreen() {
                 { value: 'dark', label: 'Dark' },
               ]}
               value={theme}
-              onChange={changeTheme}
+              onChange={setTheme}
             />
           </View>
         </Card>
