@@ -1,6 +1,6 @@
 import '../global.css';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,6 +21,7 @@ import { useThemeColors } from '@/lib/theme';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { useExerciseCatalog } from '@/features/exercises/hooks';
+import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
 import { SplashOverlay } from '@/components/ui/SplashOverlay';
 
 SplashScreen.preventAutoHideAsync();
@@ -53,6 +54,28 @@ function useProtectedRoute() {
   }, [status, onboarded, segments, router]);
 }
 
+/**
+ * A workout survives an app kill (the store is persisted), so drop the user back
+ * into it on relaunch — otherwise the restored session sits invisible.
+ */
+function useResumeActiveSession() {
+  const status = useAuthStore((s) => s.status);
+  const onboarded = useProfileStore((s) => s.onboarded);
+  const hydrated = useActiveSessionStore((s) => s.hydrated);
+  const hasSession = useActiveSessionStore((s) => s.session !== null);
+  const router = useRouter();
+  // One redirect per launch — re-running would yank the user out of any screen
+  // they open mid-workout, like the exercise picker.
+  const resumed = useRef(false);
+
+  useEffect(() => {
+    if (resumed.current) return;
+    if (!hydrated || status !== 'authenticated' || !onboarded) return;
+    resumed.current = true;
+    if (hasSession) router.replace('/workout/active');
+  }, [hydrated, hasSession, status, onboarded, router]);
+}
+
 function RootNavigator() {
   const hydrate = useAuthStore((s) => s.hydrate);
   const status = useAuthStore((s) => s.status);
@@ -63,6 +86,7 @@ function RootNavigator() {
   }, [hydrate]);
 
   useProtectedRoute();
+  useResumeActiveSession();
   // Keep the synchronous exercise-lookup cache warm once signed in.
   useExerciseCatalog(status === 'authenticated');
 

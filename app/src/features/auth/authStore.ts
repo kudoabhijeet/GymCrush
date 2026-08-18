@@ -1,8 +1,15 @@
 import { create } from 'zustand';
 import type { AuthResponse, BodyProfile, MacroTarget, PublicUser } from '@gymcrush/shared';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, resetAuthState } from '@/lib/api';
+import { clearMmkv } from '@/lib/mmkvStorage';
+import { queryClient } from '@/lib/queryClient';
 import { tokenStore } from '@/lib/tokenStore';
+import { clearExerciseCatalog } from '@/features/exercises/hooks';
+import { useExercisePickerStore } from '@/features/exercises/pickerStore';
+import { useOnboardingStore } from '@/features/profile/onboardingStore';
 import { useProfileStore } from '@/features/profile/profileStore';
+import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
+import { clearSessionsCache } from '@/features/workout/hooks';
 import { authApi } from './authApi';
 
 /** Local dev convenience: auto-sign-in with the seeded dev account. */
@@ -18,6 +25,35 @@ interface AuthState {
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+}
+
+/**
+ * Wipe every trace of the signed-in user from this device. The in-memory caches
+ * matter as much as the persisted ones: `sessionsCache` seeds the ghosted
+ * "previous" values that get adopted into new sets, so leaving it warm would
+ * write one account's history into the next account signed in here.
+ */
+async function clearLocalUserData() {
+  // `finally` so no single failing step can strand the rest: dropping the tokens
+  // is the one part that must happen even if a cache wipe throws, and the cache
+  // wipes must happen even if the keychain call rejects.
+  try {
+    useProfileStore.getState().clear();
+    // Body metrics from an abandoned onboarding would otherwise be prefilled for —
+    // and saved to — whoever signs in next.
+    useOnboardingStore.getState().reset();
+    // Before `clearMmkv`, so the persist write it triggers gets wiped too.
+    useActiveSessionStore.getState().discard();
+    useExercisePickerStore.getState().clear();
+    clearMmkv();
+    clearSessionsCache();
+    clearExerciseCatalog();
+    queryClient.clear();
+  } finally {
+    // Invalidates any refresh still in flight for the outgoing account.
+    resetAuthState();
+    await tokenStore.clear();
+  }
 }
 
 /** Load the user's server-side profile + targets into the profile store. */
@@ -42,6 +78,10 @@ async function syncProfileFromServer() {
 }
 
 async function applyAuth(res: AuthResponse, set: (s: Partial<AuthState>) => void) {
+  // A session always starts from a clean slate, so stale state can't survive
+  // into the next account even if some sign-out path forgets to tear it down.
+  // Must run before the new tokens are stored — it clears tokens too.
+  await clearLocalUserData();
   await tokenStore.set(res.tokens);
   // Settle the profile (→ `onboarded`) BEFORE flipping status to authenticated,
   // so the routing gate never sees authenticated + stale onboarded=false and
@@ -78,7 +118,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user, status: 'authenticated' });
     } catch {
       // Token invalid/expired beyond refresh — sign out.
-      await tokenStore.clear();
+      await clearLocalUserData();
       set({ user: null, status: 'unauthenticated' });
     }
   },
@@ -96,15 +136,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     const tokens = await tokenStore.get();
     if (tokens) await authApi.logout(tokens.refreshToken).catch(() => {});
-    await tokenStore.clear();
-    useProfileStore.getState().clear();
+    await clearLocalUserData();
     set({ user: null, status: 'unauthenticated' });
   },
 
   deleteAccount: async () => {
     await authApi.deleteAccount();
-    await tokenStore.clear();
-    useProfileStore.getState().clear();
+    await clearLocalUserData();
     set({ user: null, status: 'unauthenticated' });
   },
 }));
