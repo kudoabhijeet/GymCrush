@@ -158,13 +158,14 @@ export default function ProfileScreen() {
       <ListGroup>
         <ListRow
           title="Notifications"
-          subtitle="Rest reminders, streaks — coming soon"
+          subtitle="Rest timer alerts and daily reminders"
           left={
             <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
               <Bell size={18} color={colors.contentMuted} />
             </View>
           }
           right={<ChevronRight size={18} color={colors.contentFaint} />}
+          onPress={() => router.push('/notifications')}
         />
         <ListSeparator />
         <ListRow

@@ -30,10 +30,14 @@ export default function NutritionScreen() {
   const macroTarget = useProfileStore((s) => s.macroTarget);
   const [dayOffset, setDayOffset] = useState(0);
 
-  const date = useMemo(() => {
-    const d = new Date(Date.now() + dayOffset * 86_400_000);
-    return d;
-  }, [dayOffset]);
+  // Snapshot "now" once at mount rather than reading the clock during render,
+  // which would make the memo impure. `dayOffset` still moves the day freely.
+  const [mountedAt] = useState(() => Date.now());
+
+  const date = useMemo(
+    () => new Date(mountedAt + dayOffset * 86_400_000),
+    [dayOffset, mountedAt],
+  );
   const dateKey = localDateKey(date);
 
   const { data: log, isLoading } = useDailyLog(dateKey);

@@ -4,6 +4,8 @@ import type { LoggedExercise, WorkoutSession } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 import { mmkvStorage } from '@/lib/mmkvStorage';
 import { queryClient } from '@/lib/queryClient';
+import { cancelRestNotification, scheduleRestNotification } from '@/lib/notifications';
+import { useNotificationStore } from '@/features/profile/notificationStore';
 import { bestE1rmFor, e1rmOf, previousSetsFor } from './hooks';
 
 export interface ActiveSet {
@@ -291,6 +293,13 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           };
         });
 
+        // Only completing a set starts a rest period. Un-completing one leaves
+        // any running rest (and so its notification) untouched, matching the
+        // `restTimer` fallthrough below.
+        if (startRest && useNotificationStore.getState().restTimer) {
+          scheduleRestNotification(startRest);
+        }
+
         set({
           session: { ...session, exercises },
           restTimer: startRest
@@ -302,9 +311,15 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
 
       clearPR: () => set({ justPR: null }),
 
-      skipRest: () => set({ restTimer: null }),
+      skipRest: () => {
+        cancelRestNotification();
+        set({ restTimer: null });
+      },
 
-      discard: () => set({ session: null, restTimer: null, saving: false, justPR: null }),
+      discard: () => {
+        cancelRestNotification();
+        set({ session: null, restTimer: null, saving: false, justPR: null });
+      },
 
       finish: async () => {
         const { session, saving } = get();
@@ -364,6 +379,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           // handing off: a kill during the navigation below would otherwise
           // restore it and let the user submit the whole session a second time.
           await useActiveSessionStore.persist.clearStorage();
+          await cancelRestNotification();
           // Keep `session` in memory so the discard-effect on the active screen
           // doesn't fire a competing navigation; the caller navigates to the
           // summary and then calls `discard()`.

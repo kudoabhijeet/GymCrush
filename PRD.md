@@ -139,7 +139,8 @@ User ─┬─< WorkoutPlan ─< PlanDay ─< PlanExercise >─ Exercise
 ### Phase 4 — Platform & Sync
 - [ ] Offline-first caching + background sync (queue mutations)
 - [ ] Multi-device sync hardening
-- [ ] Push notifications (rest reminders, workout streaks)
+- [x] Local notifications: rest-timer-done alert + daily workout reminder (opt-in, `app/src/lib/notifications.ts`)
+- [ ] Remote push (server-sent) — needs a push-token table + Expo push credentials; not started
 - [ ] Data export (CSV/JSON)
 - [ ] Optional wearable / Health / Google Fit integration
 

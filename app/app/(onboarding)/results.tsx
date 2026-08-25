@@ -107,7 +107,7 @@ export default function ResultsScreen() {
             <Info size={15} color={colors.warning} style={{ marginTop: 1 }} />
             <AppText variant="caption" className="flex-1 text-warning">
               Protein and fat were scaled down to fit your calorie target. At this bodyweight and
-              deficit the usual per-kg amounts wouldn't leave room for carbs.
+              deficit the usual per-kg amounts wouldn&apos;t leave room for carbs.
             </AppText>
           </View>
         ) : null}

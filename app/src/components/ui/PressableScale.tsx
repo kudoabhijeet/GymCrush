@@ -41,18 +41,18 @@ function PressableScaleInner({
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.get() }],
   }));
 
   return (
     <AnimatedPressable
       style={[cssStyle, animatedStyle, style as object]}
       onPressIn={(e) => {
-        scale.value = withTiming(scaleTo, { duration: 80 });
+        scale.set(withTiming(scaleTo, { duration: 80 }));
         onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        scale.value = withSpring(1, { damping: 18, stiffness: 300 });
+        scale.set(withSpring(1, { damping: 18, stiffness: 300 }));
         onPressOut?.(e);
       }}
       {...rest}

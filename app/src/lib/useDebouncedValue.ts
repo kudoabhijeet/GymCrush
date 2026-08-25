@@ -10,15 +10,12 @@ export function useDebouncedValue<T>(value: T, delayMs = 300): T {
   const [debounced, setDebounced] = useState(value);
 
   useEffect(() => {
-    // Empty resets immediately: clearing the field should show the full list at
-    // once rather than appearing to hang for the delay.
-    if (value === ('' as unknown as T)) {
-      setDebounced(value);
-      return;
-    }
     const id = setTimeout(() => setDebounced(value), delayMs);
     return () => clearTimeout(id);
   }, [value, delayMs]);
 
-  return debounced;
+  // Empty resets immediately: clearing the field should show the full list at
+  // once rather than appearing to hang for the delay. Derived here rather than
+  // written back from the effect, which would cost a second render pass.
+  return value === ('' as unknown as T) ? value : debounced;
 }
