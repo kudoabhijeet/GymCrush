@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Dumbbell, Play, Trophy, UtensilsCrossed } from 'lucide-react-native';
@@ -40,15 +40,18 @@ export default function HomeScreen() {
     return { plan: myPlan, day };
   }, [plans, sessions]);
 
-  // Snapshot "now" once at mount: reading the clock during render makes the
-  // memo impure, and the week strip only needs to be stable for the visit.
-  const [mountedAt] = useState(() => Date.now());
-
-  /** Filled dots for the last 7 days with a logged session. */
+  /**
+   * Filled dots for the last 7 days with a logged session.
+   *
+   * Reads the clock during render on purpose — see the note in nutrition.tsx.
+   * Freezing "now" at mount would let the strip permanently mislabel yesterday
+   * as today; recomputing means a sessions refetch pulls in a fresh clock.
+   */
   const weekDots = useMemo(() => {
     const days: { label: string; trained: boolean; isToday: boolean }[] = [];
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(mountedAt - i * 86_400_000);
+      // eslint-disable-next-line react-hooks/purity
+      const date = new Date(Date.now() - i * 86_400_000);
       const key = localDateKey(date);
       const trained = (sessions ?? []).some((s) => localDateKey(new Date(s.startedAt)) === key);
       days.push({
@@ -58,7 +61,7 @@ export default function HomeScreen() {
       });
     }
     return days;
-  }, [sessions, mountedAt]);
+  }, [sessions]);
 
   /** Sessions whose best e1RM beat all prior sessions for that exercise. */
   const recentPRs = useMemo(() => {

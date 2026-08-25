@@ -108,8 +108,8 @@ export default function NotificationsScreen() {
                 </AppText>
               </View>
               <AppText variant="caption">
-                GymCrush doesn&apos;t have permission to send notifications, so these won&apos;t
-                fire even though they&apos;re turned on. Enable them in system settings.
+                GymCrush doesn&apos;t have permission to send notifications, so nothing here can
+                be turned on until it&apos;s enabled in system settings.
               </AppText>
               <Button
                 label="Open Settings"

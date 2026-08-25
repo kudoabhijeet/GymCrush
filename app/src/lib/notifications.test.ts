@@ -20,8 +20,8 @@ const os = {
   scheduled: new Map<string, Scheduled>(),
   granted: true,
   canAskAgain: true,
-  /** Resolves the next scheduleNotificationAsync only when released. */
-  gate: null as null | (() => void),
+  /** When set, scheduleNotificationAsync blocks on it — models a slow native call. */
+  gate: null as null | Promise<void>,
 };
 
 vi.mock('expo-notifications', () => ({
@@ -37,7 +37,7 @@ vi.mock('expo-notifications', () => ({
     status: os.granted ? 'granted' : 'denied',
   })),
   scheduleNotificationAsync: vi.fn(async (req: Record<string, any>) => {
-    if (os.gate) await new Promise<void>((resolve) => (os.gate = resolve));
+    if (os.gate) await os.gate;
     const identifier = req.identifier ?? `auto_${Math.random()}`;
     os.scheduled.set(identifier, { identifier, seconds: req.trigger?.seconds ?? 0 });
     return identifier;
@@ -119,17 +119,18 @@ describe('cancelRestNotification', () => {
 });
 
 describe('skip landing mid-schedule', () => {
-  it('leaves nothing scheduled when the cancel arrives while scheduling is in flight', async () => {
+  it('leaves nothing scheduled when a cancel is issued while scheduling is slow', async () => {
     const m = await loadModule();
-    // Hold scheduleNotificationAsync open so the skip lands inside its window.
-    os.gate = () => {};
-    const scheduling = m.scheduleRestNotification(120);
-    await m.cancelRestNotification();
+    // Hold the native schedule call open, so the skip is issued before it lands.
+    let release!: () => void;
+    os.gate = new Promise<void>((resolve) => (release = resolve));
 
-    // Release the native call: it resolves *after* the cancel already ran.
-    (os.gate as unknown as () => void)();
+    const scheduling = m.scheduleRestNotification(120);
+    const cancelling = m.cancelRestNotification();
+
+    release();
     os.gate = null;
-    await scheduling;
+    await Promise.all([scheduling, cancelling]);
 
     expect(os.scheduled.size).toBe(0);
   });
@@ -138,6 +139,30 @@ describe('skip landing mid-schedule', () => {
     const m = await loadModule();
     await m.scheduleRestNotification(120);
     expect(os.scheduled.size).toBe(1);
+  });
+
+  it('keeps the newest rest period when a skip is followed by another set', async () => {
+    // skip(120) -> cancel -> schedule(90), all overlapping. The 90s alert is the
+    // live one and must survive: an earlier call resolving late must not delete
+    // the schedule that replaced it under the shared identifier.
+    const m = await loadModule();
+    const first = m.scheduleRestNotification(120);
+    const cancelled = m.cancelRestNotification();
+    const second = m.scheduleRestNotification(90);
+    await Promise.all([first, cancelled, second]);
+
+    expect(os.scheduled.size).toBe(1);
+    expect(os.scheduled.get(REST_ID)!.seconds).toBe(90);
+  });
+
+  it('applies operations in call order regardless of resolution timing', async () => {
+    const m = await loadModule();
+    const scheduling = m.scheduleRestNotification(120);
+    const cancelling = m.cancelRestNotification();
+    await Promise.all([scheduling, cancelling]);
+
+    // The cancel was called last, so nothing may remain armed.
+    expect(os.scheduled.size).toBe(0);
   });
 });
 

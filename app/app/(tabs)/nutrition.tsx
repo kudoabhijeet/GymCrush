@@ -30,14 +30,13 @@ export default function NutritionScreen() {
   const macroTarget = useProfileStore((s) => s.macroTarget);
   const [dayOffset, setDayOffset] = useState(0);
 
-  // Snapshot "now" once at mount rather than reading the clock during render,
-  // which would make the memo impure. `dayOffset` still moves the day freely.
-  const [mountedAt] = useState(() => Date.now());
-
-  const date = useMemo(
-    () => new Date(mountedAt + dayOffset * 86_400_000),
-    [dayOffset, mountedAt],
-  );
+  // Reads the clock during render on purpose. Freezing "now" at mount is the
+  // obvious way to satisfy the purity rule, but it strands the screen on the
+  // day it opened: a tab mounted at 23:50 would still log food into yesterday
+  // at 00:10. Recomputing lets a re-render (including leaving and returning to
+  // "Today") self-correct across midnight.
+  // eslint-disable-next-line react-hooks/purity
+  const date = useMemo(() => new Date(Date.now() + dayOffset * 86_400_000), [dayOffset]);
   const dateKey = localDateKey(date);
 
   const { data: log, isLoading } = useDailyLog(dateKey);

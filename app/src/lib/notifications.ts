@@ -52,84 +52,104 @@ export async function hasNotificationPermission(): Promise<boolean> {
   return (await Notifications.getPermissionsAsync()).status === 'granted';
 }
 
-/* -------------------------------- Rest timer ------------------------------ */
+/* ------------------------------ Scheduling -------------------------------- */
 
 /**
- * There is only ever one rest notification, so it uses a fixed id rather than
- * the one `scheduleNotificationAsync` hands back: an id held in memory is lost
- * when the process is killed, which would leave a scheduled "Rest complete"
- * that nothing can cancel — it would fire long after the workout was saved.
+ * Both notifications use fixed ids rather than the one `scheduleNotificationAsync`
+ * hands back: an id held in memory is lost when the process is killed, which
+ * would leave a scheduled alert that nothing can cancel.
  */
 const REST_IDENTIFIER = 'gc.rest-timer';
+const REMINDER_IDENTIFIER = 'gc.workout-reminder';
 
 /**
- * Bumped by every schedule and cancel. Scheduling awaits the permission check
- * and the native call, and a skip landing in that window would otherwise be
- * overtaken by the notification it was meant to prevent.
+ * Every schedule/cancel runs one at a time, in call order.
+ *
+ * Each operation awaits a permission check and a native call, and letting those
+ * interleave lets a stale one clobber a fresh one: a skip cancelling nothing
+ * because the schedule it meant to stop had not landed yet, or a finished
+ * schedule deleting the newer schedule that replaced it. Since both operations
+ * key off a shared identifier, ordering is the only thing that makes
+ * last-call-wins true.
  */
-let restGeneration = 0;
+let queue: Promise<unknown> = Promise.resolve();
 
-export async function cancelRestNotification() {
-  restGeneration++;
-  await Notifications.cancelScheduledNotificationAsync(REST_IDENTIFIER);
+function serialize(op: () => Promise<void>): Promise<void> {
+  const run = queue.then(op, op);
+  // Keep the chain alive if one operation rejects.
+  queue = run.catch(() => undefined);
+  return run;
 }
 
-export async function scheduleRestNotification(seconds: number) {
-  const generation = ++restGeneration;
-  // A trigger under a second fires immediately on iOS rather than not at all.
-  if (seconds < 1) return;
-  if (!(await hasNotificationPermission())) return;
-  await ensureChannels();
-  if (generation !== restGeneration) return;
+/**
+ * `channelId` belongs on the trigger, not on `content` — the content input has
+ * no such field, so putting it there silently drops the alert onto Android's
+ * default channel and loses the heads-up banner.
+ */
+const androidChannel = (id: string) => (Platform.OS === 'android' ? { channelId: id } : {});
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: REST_IDENTIFIER,
-    content: {
-      title: 'Rest complete',
-      body: 'Next set is ready.',
-      data: { kind: 'rest' },
-      sound: 'default',
-      ...(Platform.OS === 'android' ? { channelId: REST_CHANNEL } : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds,
-      repeats: false,
-    },
-  });
+/* -------------------------------- Rest timer ------------------------------ */
 
-  // A cancel that landed while the native call was in flight saw nothing to
-  // remove, so undo it here.
-  if (generation !== restGeneration) {
+export function cancelRestNotification(): Promise<void> {
+  return serialize(async () => {
     await Notifications.cancelScheduledNotificationAsync(REST_IDENTIFIER);
-  }
+  });
+}
+
+export function scheduleRestNotification(seconds: number): Promise<void> {
+  return serialize(async () => {
+    // A trigger under a second fires immediately on iOS rather than not at all.
+    if (seconds < 1) return;
+    if (!(await hasNotificationPermission())) return;
+    await ensureChannels();
+    await Notifications.scheduleNotificationAsync({
+      identifier: REST_IDENTIFIER,
+      content: {
+        title: 'Rest complete',
+        body: 'Next set is ready.',
+        data: { kind: 'rest' },
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds,
+        repeats: false,
+        ...androidChannel(REST_CHANNEL),
+      },
+    });
+  });
 }
 
 /* ----------------------------- Daily reminder ----------------------------- */
 
-const REMINDER_IDENTIFIER = 'gc.workout-reminder';
-
-export async function cancelDailyReminder() {
-  await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER);
+export function cancelDailyReminder(): Promise<void> {
+  return serialize(async () => {
+    await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER);
+  });
 }
 
-export async function scheduleDailyReminder(hour: number, minute: number) {
-  await cancelDailyReminder();
-  if (!(await hasNotificationPermission())) return;
-  await ensureChannels();
-  await Notifications.scheduleNotificationAsync({
-    identifier: REMINDER_IDENTIFIER,
-    content: {
-      title: 'Time to train',
-      body: "Keep the streak alive — today's workout is waiting.",
-      data: { kind: 'reminder' },
-      sound: 'default',
-      ...(Platform.OS === 'android' ? { channelId: REMINDER_CHANNEL } : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
+export function scheduleDailyReminder(hour: number, minute: number): Promise<void> {
+  return serialize(async () => {
+    if (!(await hasNotificationPermission())) {
+      // The stored pref may still say on; leave nothing armed behind it.
+      await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER);
+      return;
+    }
+    await ensureChannels();
+    await Notifications.scheduleNotificationAsync({
+      identifier: REMINDER_IDENTIFIER,
+      content: {
+        title: 'Time to train',
+        body: "Keep the streak alive — today's workout is waiting.",
+        data: { kind: 'reminder' },
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        ...androidChannel(REMINDER_CHANNEL),
+      },
+    });
   });
 }
