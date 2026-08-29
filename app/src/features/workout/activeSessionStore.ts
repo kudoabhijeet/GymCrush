@@ -324,7 +324,10 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
       finish: async () => {
         const { session, saving } = get();
         if (!session || saving) return null;
-        set({ saving: true });
+        // Disarm before the save round-trip — a rest alert armed mid-finish must
+        // not fire while requests are in flight or after storage is cleared.
+        cancelRestNotification();
+        set({ saving: true, restTimer: null });
 
         try {
           // 1. Start the session server-side. Passing planDayId would prefill
@@ -379,11 +382,10 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           // handing off: a kill during the navigation below would otherwise
           // restore it and let the user submit the whole session a second time.
           await useActiveSessionStore.persist.clearStorage();
-          await cancelRestNotification();
           // Keep `session` in memory so the discard-effect on the active screen
           // doesn't fire a competing navigation; the caller navigates to the
           // summary and then calls `discard()`.
-          set({ restTimer: null, saving: false });
+          set({ saving: false });
           return started.id;
         } catch {
           // Keep the local session so the user can retry.

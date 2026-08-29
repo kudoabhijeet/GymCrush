@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import type { DailyLogEntry, Meal } from '@gymcrush/shared';
 import { useThemeColors } from '@/lib/theme';
 import { formatRelativeDay, localDateKey } from '@/lib/format';
+import { useCalendarDay } from '@/lib/useCalendarDay';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { useDailyLog, useRemoveFoodEntry, useWeightHistory } from '@/features/nutrition/hooks';
 
@@ -29,14 +30,8 @@ export default function NutritionScreen() {
   const colors = useThemeColors();
   const macroTarget = useProfileStore((s) => s.macroTarget);
   const [dayOffset, setDayOffset] = useState(0);
-
-  // Reads the clock during render on purpose. Freezing "now" at mount is the
-  // obvious way to satisfy the purity rule, but it strands the screen on the
-  // day it opened: a tab mounted at 23:50 would still log food into yesterday
-  // at 00:10. Recomputing lets a re-render (including leaving and returning to
-  // "Today") self-correct across midnight.
-  // eslint-disable-next-line react-hooks/purity
-  const date = useMemo(() => new Date(Date.now() + dayOffset * 86_400_000), [dayOffset]);
+  const today = useCalendarDay();
+  const date = new Date(today + dayOffset * 86_400_000);
   const dateKey = localDateKey(date);
 
   const { data: log, isLoading } = useDailyLog(dateKey);
