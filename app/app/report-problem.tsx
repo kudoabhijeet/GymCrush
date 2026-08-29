@@ -1,4 +1,4 @@
-import { Alert, Linking, Platform, ScrollView, View } from 'react-native';
+import { Linking, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { LifeBuoy, Mail } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useThemeColors } from '@/lib/theme';
+import { toast } from '@/lib/toastStore';
 
 const SUPPORT_EMAIL = 'support@gymcrush.app';
 
@@ -23,7 +24,13 @@ export default function ReportProblemScreen() {
     try {
       await Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
     } catch {
-      Alert.alert('No mail app found', `Email us directly at ${SUPPORT_EMAIL}.`);
+      // The address is also printed at the bottom of this screen, so the toast
+      // only has to say the handoff failed.
+      toast.show({
+        message: `No mail app found — email ${SUPPORT_EMAIL} directly.`,
+        tone: 'warning',
+        duration: 6000,
+      });
     }
   };
 

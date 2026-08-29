@@ -13,6 +13,14 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'ios', select: (spec: Record<string, unknown>) => spec.ios ?? spec.default },
 }));
 
+vi.mock('expo-haptics', () => ({
+  impactAsync: vi.fn(async () => {}),
+  notificationAsync: vi.fn(async () => {}),
+  selectionAsync: vi.fn(async () => {}),
+  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy', Soft: 'soft', Rigid: 'rigid' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
+}));
+
 vi.mock('nativewind', () => ({
   colorScheme: { set: vi.fn(), get: vi.fn(() => 'dark') },
   useColorScheme: () => ({ colorScheme: 'dark' }),

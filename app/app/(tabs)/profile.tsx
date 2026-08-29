@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import {
@@ -18,11 +18,13 @@ import {
 } from 'lucide-react-native';
 import { AppText } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
+import { useConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatTile } from '@/components/ui/StatTile';
 import { useThemeColors } from '@/lib/theme';
+import { toast } from '@/lib/toastStore';
 import { formatWeight } from '@/lib/format';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
@@ -36,28 +38,32 @@ export default function ProfileScreen() {
   const { bodyProfile, macroTarget, units, setUnits, theme, setTheme, resetOnboarding } =
     useProfileStore();
   const [deleting, setDeleting] = useState(false);
+  const { confirm, element: confirmElement } = useConfirmSheet();
 
-  const confirmDeleteAccount = () => {
-    Alert.alert(
-      'Delete account?',
-      'This permanently deletes your account and everything in it — plans, workouts, food and weight logs. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteAccount();
-            } catch {
-              setDeleting(false);
-              Alert.alert('Could not delete account', 'Something went wrong. Please try again.');
-            }
-          },
-        },
-      ],
-    );
+  const onLogout = async () => {
+    const ok = await confirm({
+      title: 'Log out?',
+      message: "You'll need to sign in again to see your data.",
+      confirmLabel: 'Log out',
+    });
+    if (ok) logout();
+  };
+
+  const confirmDeleteAccount = async () => {
+    const ok = await confirm({
+      title: 'Delete account?',
+      message:
+        'This permanently deletes your account and everything in it — plans, workouts, food and weight logs. This cannot be undone.',
+      confirmLabel: 'Delete account',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await deleteAccount();
+    } catch {
+      setDeleting(false);
+      toast.show({ message: "Couldn't delete your account — try again.", tone: 'warning' });
+    }
   };
 
   const initials =
@@ -187,7 +193,7 @@ export default function ProfileScreen() {
               <LogOut size={18} color={colors.danger} />
             </View>
           }
-          onPress={logout}
+          onPress={() => void onLogout()}
         />
       </ListGroup>
 
@@ -235,7 +241,7 @@ export default function ProfileScreen() {
                 <Trash2 size={18} color={colors.danger} />
               </View>
             }
-            onPress={deleting ? undefined : confirmDeleteAccount}
+            onPress={deleting ? undefined : () => void confirmDeleteAccount()}
           />
         </ListGroup>
       </View>
@@ -243,6 +249,8 @@ export default function ProfileScreen() {
       <AppText variant="caption" className="text-center">
         GymCrush v{Constants.expoConfig?.version ?? '—'}
       </AppText>
+
+      {confirmElement}
     </ScreenScaffold>
   );
 }

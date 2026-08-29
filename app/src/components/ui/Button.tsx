@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Text, View, type PressableProps } from 'react-native';
+import { ActivityIndicator, View, type PressableProps } from 'react-native';
 import { useThemeColors } from '@/lib/theme';
+import { AppText } from './Text';
 import { PressableScale } from './PressableScale';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -58,6 +59,10 @@ export function Button({
     <PressableScale
       className={`flex-row items-center justify-center gap-2 ${containerVariants[variant]} ${containerSizes[size]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
+      // `sm` is visually 40pt tall — the slop tops it up to the 44pt minimum.
+      hitSlop={size === 'sm' ? { top: 4, bottom: 4 } : undefined}
       {...rest}
     >
       {loading ? (
@@ -65,7 +70,9 @@ export function Button({
       ) : (
         <>
           {icon ? <View>{icon}</View> : null}
-          <Text className={`font-bold ${textSizes[size]} ${textVariants[variant]}`}>{label}</Text>
+          <AppText className={`font-bold ${textSizes[size]} ${textVariants[variant]}`}>
+            {label}
+          </AppText>
         </>
       )}
     </PressableScale>

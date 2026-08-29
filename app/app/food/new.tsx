@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createFoodSchema } from '@gymcrush/shared';
@@ -39,7 +39,17 @@ export default function NewFoodScreen() {
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
       <ScreenHeader title="Custom food" />
-      <ScrollView contentContainerClassName="gap-4 px-5 pb-16 pt-2" showsVerticalScrollIndicator={false}>
+      {/* Same keyboard pattern as the auth screens — the macro fields sit low
+          enough that the keyboard covers them without this. */}
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        contentContainerClassName="gap-4 px-5 pb-16 pt-2"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <TextField
           label="Name"
           value={name}
@@ -95,6 +105,7 @@ export default function NewFoodScreen() {
         </View>
         <Button label="Save food" size="lg" loading={createFood.isPending} onPress={onSave} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

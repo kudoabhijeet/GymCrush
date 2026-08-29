@@ -7,6 +7,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { NumberStepper } from '@/components/ui/NumberStepper';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -19,7 +20,7 @@ import { useLogWeight, useWeightHistory } from '@/features/nutrition/hooks';
 
 export default function WeightScreen() {
   const colors = useThemeColors();
-  const { data: entries, isLoading } = useWeightHistory();
+  const { data: entries, isPending, isError, refetch } = useWeightHistory();
   const logWeight = useLogWeight();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
@@ -47,7 +48,11 @@ export default function WeightScreen() {
         }
       />
 
-      {isLoading ? (
+      {isError ? (
+        <View className="px-5 pt-2">
+          <ErrorState title="Couldn't load your weight log" onRetry={() => void refetch()} />
+        </View>
+      ) : isPending ? (
         <View className="gap-3 px-5 pt-2">
           <Skeleton className="h-24 rounded-2xl" />
           <Skeleton className="h-40 rounded-2xl" />

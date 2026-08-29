@@ -22,7 +22,9 @@ import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { useExerciseCatalog } from '@/features/exercises/hooks';
 import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SplashOverlay } from '@/components/ui/SplashOverlay';
+import { ToastHost } from '@/components/ui/ToastHost';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -128,7 +130,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="auto" />
-          <RootNavigator />
+          <ErrorBoundary>
+            <RootNavigator />
+          </ErrorBoundary>
+          <ToastHost />
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

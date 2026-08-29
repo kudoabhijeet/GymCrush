@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Info } from 'lucide-react-native';
 import {
   calcMacroTarget,
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ProgressRing } from '@/components/ui/ProgressRing';
+import { durations } from '@/lib/motion';
 import { useThemeColors } from '@/lib/theme';
 import { useOnboardingStore } from '@/features/profile/onboardingStore';
 import { useProfileStore } from '@/features/profile/profileStore';
@@ -130,15 +132,20 @@ function MacroRow({
   grams,
   share,
   fill,
+  delayIndex = 0,
 }: {
   label: string;
   grams: number;
   share: number;
   fill: string;
+  /** Staggers the row's entrance — first row lands, the next two follow. */
   delayIndex?: number;
 }) {
   return (
-    <View className="gap-2">
+    <Animated.View
+      entering={FadeInDown.delay(delayIndex * 60).duration(durations.enter)}
+      className="gap-2"
+    >
       <View className="flex-row items-baseline justify-between">
         <AppText variant="subheading">{label}</AppText>
         <AppText variant="caption">
@@ -148,6 +155,6 @@ function MacroRow({
         </AppText>
       </View>
       <ProgressBar progress={share} fillClassName={fill} height={6} />
-    </View>
+    </Animated.View>
   );
 }

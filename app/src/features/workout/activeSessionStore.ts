@@ -4,6 +4,7 @@ import type { LoggedExercise, WorkoutSession } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 import { mmkvStorage } from '@/lib/mmkvStorage';
 import { queryClient } from '@/lib/queryClient';
+import { toast } from '@/lib/toastStore';
 import { cancelRestNotification, scheduleRestNotification } from '@/lib/notifications';
 import { useNotificationStore } from '@/features/profile/notificationStore';
 import { bestE1rmFor, e1rmOf, previousSetsFor } from './hooks';
@@ -78,6 +79,10 @@ interface ActiveSessionState {
   toggleSetComplete: (activeExerciseId: string, setId: string) => void;
   clearPR: () => void;
   skipRest: () => void;
+  /** Shift the running rest by ±seconds; hitting zero behaves like Skip. */
+  adjustRest: (deltaSec: number) => void;
+  /** Put a just-removed exercise back at its old position (undo). */
+  restoreExercise: (exercise: ActiveExercise, index: number) => void;
   discard: () => void;
   /**
    * Persist the session to the API: start → replay completed sets → finish.
@@ -316,8 +321,41 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         set({ restTimer: null });
       },
 
+      adjustRest: (deltaSec) => {
+        const { restTimer } = get();
+        if (!restTimer) return;
+        const endsAt = restTimer.endsAt + deltaSec * 1000;
+        const remaining = Math.ceil((endsAt - Date.now()) / 1000);
+        if (remaining <= 0) {
+          // Adjusted down to nothing — same silent path as Skip.
+          cancelRestNotification();
+          set({ restTimer: null });
+          return;
+        }
+        // Total grows/shrinks with the adjustment but never below what's left,
+        // so the progress bar can't exceed 100%.
+        const durationSec = Math.max(restTimer.durationSec + deltaSec, remaining);
+        // Re-arm the background alert under the same fixed identifier.
+        if (useNotificationStore.getState().restTimer) {
+          scheduleRestNotification(remaining);
+        }
+        set({ restTimer: { endsAt, durationSec } });
+      },
+
+      restoreExercise: (exercise, index) => {
+        const { session } = get();
+        if (!session) return;
+        const exercises = [...session.exercises];
+        exercises.splice(Math.min(index, exercises.length), 0, exercise);
+        set({ session: { ...session, exercises } });
+      },
+
       discard: () => {
         cancelRestNotification();
+        // An outstanding undo toast (remove-exercise) points at a session that
+        // no longer exists — leaving it armed would let a later tap inject a
+        // stale exercise into whatever session comes next.
+        toast.dismiss();
         set({ session: null, restTimer: null, saving: false, justPR: null });
       },
 
@@ -327,6 +365,9 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         // Disarm before the save round-trip — a rest alert armed mid-finish must
         // not fire while requests are in flight or after storage is cleared.
         cancelRestNotification();
+        // Same reasoning as discard(): a pending undo must not survive the
+        // session it belongs to.
+        toast.dismiss();
         set({ saving: true, restTimer: null });
 
         try {

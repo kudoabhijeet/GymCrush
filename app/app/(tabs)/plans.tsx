@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonList } from '@/components/ui/Skeleton';
+import { pressScale } from '@/lib/motion';
 import { BRAND_FG, useThemeColors } from '@/lib/theme';
 import { useDuplicatePlan, usePlans, useTemplates } from '@/features/plans/hooks';
 
@@ -30,7 +32,7 @@ export default function PlansScreen() {
   const mine = usePlans();
   const templates = useTemplates();
 
-  const isLoading = tab === 'mine' ? mine.isLoading : templates.isLoading;
+  const active = tab === 'mine' ? mine : templates;
   // /api/plans also returns templates (read access is intentionally broad), so
   // the "mine" tab drops them here.
   const visible = useMemo(
@@ -41,7 +43,11 @@ export default function PlansScreen() {
 
   return (
     <View className="flex-1">
-      <ScreenScaffold title="Plans" subtitle="Programs built around your goals.">
+      <ScreenScaffold
+        title="Plans"
+        subtitle="Programs built around your goals."
+        onRefresh={() => Promise.all([mine.refetch(), templates.refetch()])}
+      >
         <SegmentedControl
           options={[
             { value: 'mine', label: 'My plans' },
@@ -51,11 +57,13 @@ export default function PlansScreen() {
           onChange={setTab}
         />
 
-        {isLoading ? (
-          <View className="gap-3">
-            <Skeleton className="h-32 rounded-2xl" />
-            <Skeleton className="h-32 rounded-2xl" />
-          </View>
+        {active.isError ? (
+          <ErrorState
+            title={tab === 'mine' ? "Couldn't load your plans" : "Couldn't load templates"}
+            onRetry={() => void active.refetch()}
+          />
+        ) : active.isPending ? (
+          <SkeletonList rows={2} rowClassName="h-32 rounded-2xl" />
         ) : visible.length === 0 ? (
           <EmptyState
             icon={<ClipboardList size={26} color={colors.contentFaint} />}
@@ -80,7 +88,7 @@ export default function PlansScreen() {
       {/* FAB */}
       <PressableScale
         onPress={() => router.push('/plan/new')}
-        scaleTo={0.9}
+        scaleTo={pressScale.icon}
         accessibilityLabel="Create plan"
         className="absolute bottom-6 right-5 h-14 w-14 items-center justify-center rounded-2xl bg-brand shadow-lg"
       >

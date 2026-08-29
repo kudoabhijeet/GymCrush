@@ -1,12 +1,15 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Dumbbell, Play, Trophy, UtensilsCrossed } from 'lucide-react-native';
+import { ArrowRight, ClipboardList, Dumbbell, Play, Trophy, UtensilsCrossed } from 'lucide-react-native';
 import { AppText } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { haptics } from '@/lib/haptics';
 import { BRAND, BRAND_FG, useThemeColors } from '@/lib/theme';
 import { formatLongDate, formatRelativeDay, localDateKey } from '@/lib/format';
 import { useCalendarDay } from '@/lib/useCalendarDay';
@@ -17,17 +20,22 @@ import { useSessions } from '@/features/workout/hooks';
 import { useDailyLog } from '@/features/nutrition/hooks';
 import { exerciseLookup } from '@/features/exercises/hooks';
 import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
+import { useStartSession } from '@/features/workout/useStartSession';
 
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const user = useAuthStore((s) => s.user);
   const macroTarget = useProfileStore((s) => s.macroTarget);
-  const { data: plans } = usePlans();
-  const { data: sessions } = useSessions();
+  const { data: plans, isPending: plansPending, refetch: refetchPlans } = usePlans();
+  const { data: sessions, isPending: sessionsPending, refetch: refetchSessions } = useSessions();
   const today = useCalendarDay();
-  const { data: dailyLog } = useDailyLog(localDateKey(new Date(today)));
-  const startSession = useActiveSessionStore((s) => s.start);
+  const {
+    data: dailyLog,
+    isPending: dailyLogPending,
+    refetch: refetchDailyLog,
+  } = useDailyLog(localDateKey(new Date(today)));
+  const { startPlanDay } = useStartSession();
   const activeSession = useActiveSessionStore((s) => s.session);
 
   /** Next day of the user's own (non-template) plan, cycling past the last logged day. */
@@ -91,30 +99,27 @@ export default function HomeScreen() {
       router.push('/(tabs)/log');
       return;
     }
-    startSession({
-      name: nextWorkout.day.name,
-      planId: nextWorkout.plan.id,
-      planDayId: nextWorkout.day.id,
-      prescriptions: nextWorkout.day.exercises.map((e) => ({
-        exerciseId: e.exerciseId,
-        targetSets: e.targetSets,
-        targetReps: e.targetReps,
-        targetRpe: e.targetRpe,
-        restSeconds: e.restSeconds,
-        notes: e.notes,
-      })),
-    });
-    router.push('/workout/active');
+    startPlanDay(nextWorkout.plan, nextWorkout.day);
   };
 
   const calorieProgress = macroTarget ? (dailyLog?.totals.calories ?? 0) / macroTarget.calories : 0;
+  // The hero reads plan + history; while those are in flight it must not
+  // flash "Freestyle session" at a user who has a plan. A local active
+  // session needs no network, so it always renders immediately.
+  const heroPending = !activeSession && (plansPending || sessionsPending);
+  const isColdStart =
+    !plansPending && !sessionsPending && (plans?.length ?? 0) === 0 && (sessions?.length ?? 0) === 0;
 
   return (
     <ScreenScaffold
       title={user ? `Hey, ${user.displayName}` : 'Welcome'}
       subtitle={formatLongDate(new Date())}
+      onRefresh={() => Promise.all([refetchPlans(), refetchSessions(), refetchDailyLog()])}
     >
       {/* Today hero — brand fill via inline style so it always wins the cascade */}
+      {heroPending ? (
+        <Skeleton className="h-48 rounded-2xl" />
+      ) : (
       <Card className="gap-4 border-0 p-5" style={{ backgroundColor: BRAND }}>
         <View className="flex-row items-center justify-between">
           <AppText variant="label" style={{ color: BRAND_FG, opacity: 0.6 }}>
@@ -135,7 +140,15 @@ export default function HomeScreen() {
           </AppText>
         </View>
         <PressableScale
-          onPress={activeSession ? () => router.push('/workout/active') : startNextWorkout}
+          onPress={
+            activeSession
+              ? () => {
+                  haptics.tap();
+                  router.push('/workout/active');
+                }
+              : startNextWorkout
+          }
+          accessibilityRole="button"
           className="flex-row items-center justify-center gap-2 rounded-xl py-3.5"
           style={{ backgroundColor: BRAND_FG }}
         >
@@ -145,8 +158,22 @@ export default function HomeScreen() {
           </AppText>
         </PressableScale>
       </Card>
+      )}
+
+      {isColdStart ? (
+        <EmptyState
+          icon={<ClipboardList size={26} color={colors.contentFaint} />}
+          title="Welcome to GymCrush"
+          message="Create a plan to get day-by-day workouts, or start a freestyle session above."
+          actionLabel="Create a plan"
+          onAction={() => router.push('/plan/new')}
+        />
+      ) : null}
 
       {/* Week strip */}
+      {sessionsPending ? (
+        <Skeleton className="h-24 rounded-2xl" />
+      ) : (
       <Card className="gap-3">
         <AppText variant="label">This week</AppText>
         <View className="flex-row justify-between">
@@ -166,8 +193,12 @@ export default function HomeScreen() {
           ))}
         </View>
       </Card>
+      )}
 
       {/* Macros summary */}
+      {dailyLogPending ? (
+        <Skeleton className="h-36 rounded-2xl" />
+      ) : (
       <Card className="gap-3">
         <View className="flex-row items-center justify-between">
           <AppText variant="label">Today&apos;s nutrition</AppText>
@@ -203,6 +234,7 @@ export default function HomeScreen() {
           </AppText>
         </View>
       </Card>
+      )}
 
       {/* Recent PRs */}
       {recentPRs.length > 0 ? (

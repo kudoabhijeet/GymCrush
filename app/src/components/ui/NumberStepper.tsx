@@ -1,6 +1,8 @@
 import { Minus, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
+import { haptics } from '@/lib/haptics';
+import { pressScale } from '@/lib/motion';
 import { useThemeColors } from '@/lib/theme';
 import { PressableScale } from './PressableScale';
 
@@ -17,6 +19,8 @@ interface NumberStepperProps {
    * lands on `min` and vice versa. For cyclic values like an hour of the day.
    */
   wrap?: boolean;
+  /** What the value means, for screen readers — e.g. "Body weight". */
+  accessibilityLabel?: string;
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
@@ -39,6 +43,7 @@ export function NumberStepper({
   max = 999,
   format,
   wrap = false,
+  accessibilityLabel,
 }: NumberStepperProps) {
   const colors = useThemeColors();
   const [editing, setEditing] = useState(false);
@@ -46,14 +51,17 @@ export function NumberStepper({
   // needs no separate sync for external changes (+/- taps, a preset chip).
   const [text, setText] = useState(String(value));
 
-  const adjust = (delta: number) => {
+  const canStep = (delta: number) => {
+    if (wrap) return true;
     const next = round(value + delta);
-    if (wrap) {
-      onChange(wrapInto(next, min, max));
-      return;
-    }
-    if (next < min || next > max) return;
-    onChange(next);
+    return next >= min && next <= max;
+  };
+
+  const adjust = (delta: number) => {
+    if (!canStep(delta)) return;
+    const next = round(value + delta);
+    haptics.selection();
+    onChange(wrap ? wrapInto(next, min, max) : next);
   };
 
   const commit = () => {
@@ -68,19 +76,37 @@ export function NumberStepper({
     onChange(next);
   };
 
+  const display = format ? format(value) : String(value);
+  const canDec = canStep(-step);
+  const canInc = canStep(step);
+
   return (
-    <View className="flex-row items-center gap-4">
+    <View
+      className="flex-row items-center gap-4"
+      // One adjustable node: screen readers swipe up/down to step the value
+      // instead of hunting for the three separate children.
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ text: display }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(e) => {
+        if (e.nativeEvent.actionName === 'increment') adjust(step);
+        else if (e.nativeEvent.actionName === 'decrement') adjust(-step);
+      }}
+    >
       <PressableScale
         onPress={() => adjust(-step)}
-        scaleTo={0.88}
+        disabled={!canDec}
+        scaleTo={pressScale.icon}
         hitSlop={6}
         accessibilityLabel="Decrease"
-        className="h-9 w-9 items-center justify-center rounded-full bg-surface-muted"
+        className={`h-9 w-9 items-center justify-center rounded-full bg-surface-muted ${canDec ? '' : 'opacity-40'}`}
       >
         <Minus size={16} color={colors.content} strokeWidth={2.5} />
       </PressableScale>
       <TextInput
-        value={editing ? text : format ? format(value) : String(value)}
+        value={editing ? text : display}
         onFocus={() => {
           setEditing(true);
           setText(String(value));
@@ -92,14 +118,16 @@ export function NumberStepper({
         keyboardType={wrap ? 'number-pad' : 'decimal-pad'}
         returnKeyType="done"
         accessibilityLabel="Value"
+        selectionColor={colors.scheme === 'dark' ? colors.brand : colors.brandText}
         className="min-w-[56px] text-center font-extrabold text-lg text-content"
       />
       <PressableScale
         onPress={() => adjust(step)}
-        scaleTo={0.88}
+        disabled={!canInc}
+        scaleTo={pressScale.icon}
         hitSlop={6}
         accessibilityLabel="Increase"
-        className="h-9 w-9 items-center justify-center rounded-full bg-surface-muted"
+        className={`h-9 w-9 items-center justify-center rounded-full bg-surface-muted ${canInc ? '' : 'opacity-40'}`}
       >
         <Plus size={16} color={colors.content} strokeWidth={2.5} />
       </PressableScale>
