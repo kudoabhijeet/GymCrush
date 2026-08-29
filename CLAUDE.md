@@ -59,6 +59,12 @@ won't pick up new native code, since this app runs on a custom dev client (`expo
   anticipates use cases like PR markers.
 - **Haptics**: `expo-haptics`, distinct feedback types for distinct meanings (e.g. set-complete vs.
   rest-timer-done vs. PR) so the app doesn't collapse everything into one generic buzz.
+- **Notifications**: `app/src/lib/notifications.ts` is the only place that talks to `expo-notifications`
+  (permissions, Android channels, scheduling). Prefs live in `profile/notificationStore.ts`, on
+  `kvStorage` like the other device prefs — not MMKV, which is user-scoped and wiped on sign-out. The rest
+  notification is scheduled/cancelled from `activeSessionStore` alongside the `restTimer` transitions,
+  under a fixed notification id so a cancel still works after a process kill.
+  These are **local** notifications only — there is no push token, no server-sent push.
 - **e1RM / "best set"**: Epley formula (`weight * (1 + reps / 30)`), already used in
   `app/app/exercise/[id].tsx` — reuse the same formula anywhere else a "PR"/"best" needs computing so the
   definition stays consistent app-wide.
@@ -90,6 +96,7 @@ for a feature is a change confined to its `hooks.ts`.
 
 - `pnpm dev:app` / `pnpm dev:backend` — run the app / API locally.
 - `pnpm typecheck` — typecheck every package.
+- `pnpm test` — Vitest across `packages/shared` and `app` (`pnpm --filter … test:watch` to iterate).
 - `pnpm build:shared` — compile `packages/shared` (app and backend depend on the build output).
 - `pnpm db:migrate` / `pnpm db:studio` — Prisma migrations / Prisma Studio.
 
@@ -99,6 +106,24 @@ for a feature is a change confined to its `hooks.ts`.
 animation/motion, visual polish, copy. Keep backend, data-model, and infra work on the default model.
 - Delegating frontend work to a subagent: pass `model: "fable"` on the `Agent` call.
 - Working directly in-session on frontend work: switch with `/model fable5`.
+
+## Testing
+
+Vitest, run with `pnpm test`. Two suites exist so far:
+
+- `packages/shared/src/calc.test.ts` — the BMR/TDEE/macro formulas. Expected values are derived by hand
+  from the equations in PRD.md, **not** snapshotted from the implementation, so a changed constant fails
+  loudly. Keep it that way; a snapshot here would lock in a regression.
+- `app/src/lib/notifications.test.ts` + `app/src/features/profile/notificationStore.test.ts` — the
+  notification scheduling lifecycle, against a fake that models the OS keeping schedules by identifier
+  across a process restart (the property that made the original in-memory-id bug invisible).
+
+`app/vitest.config.mts` runs in a plain node environment and mocks native modules in `vitest.setup.ts`.
+It covers **logic only** — stores and `lib/` helpers. Rendering components needs the jest-expo transform
+stack (NativeWind + Reanimated + the Expo module registry), which is not set up; add that deliberately
+rather than piling more mocks into the node config.
+
+**Not yet covered:** the backend (services need a test Postgres), and any component rendering.
 
 ## Review subagents
 

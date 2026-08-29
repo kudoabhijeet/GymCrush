@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import type { DailyLogEntry, Meal } from '@gymcrush/shared';
 import { useThemeColors } from '@/lib/theme';
 import { formatRelativeDay, localDateKey } from '@/lib/format';
+import { useCalendarDay } from '@/lib/useCalendarDay';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { useDailyLog, useRemoveFoodEntry, useWeightHistory } from '@/features/nutrition/hooks';
 
@@ -29,11 +30,8 @@ export default function NutritionScreen() {
   const colors = useThemeColors();
   const macroTarget = useProfileStore((s) => s.macroTarget);
   const [dayOffset, setDayOffset] = useState(0);
-
-  const date = useMemo(() => {
-    const d = new Date(Date.now() + dayOffset * 86_400_000);
-    return d;
-  }, [dayOffset]);
+  const today = useCalendarDay();
+  const date = new Date(today + dayOffset * 86_400_000);
   const dateKey = localDateKey(date);
 
   const { data: log, isLoading } = useDailyLog(dateKey);

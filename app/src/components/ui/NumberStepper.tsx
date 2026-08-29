@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { useThemeColors } from '@/lib/theme';
 import { PressableScale } from './PressableScale';
@@ -12,11 +12,23 @@ interface NumberStepperProps {
   max?: number;
   /** Formats the displayed value, e.g. (v) => `${v}g`. */
   format?: (value: number) => string;
+  /**
+   * Roll over at the ends instead of stopping there — stepping past `max`
+   * lands on `min` and vice versa. For cyclic values like an hour of the day.
+   */
+  wrap?: boolean;
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
 // Round to the step's precision to dodge float drift (0.1 + 0.2 …).
 const round = (n: number) => Math.round(n * 100) / 100;
+// Folds n into [min, max] inclusive, so 24 -> 0 and -1 -> 23 for an hour.
+// Rounds first: a cyclic range is a whole-number one, and the span arithmetic
+// below is only meaningful over integers.
+const wrapInto = (n: number, min: number, max: number) => {
+  const span = max - min + 1;
+  return (((Math.round(n) - min) % span) + span) % span + min;
+};
 
 /** − value + control for servings, age, plate increments, etc. Value is also keyboard-editable. */
 export function NumberStepper({
@@ -26,18 +38,20 @@ export function NumberStepper({
   min = 0,
   max = 999,
   format,
+  wrap = false,
 }: NumberStepperProps) {
   const colors = useThemeColors();
   const [editing, setEditing] = useState(false);
+  // Only read while `editing`; `onFocus` seeds it from the current value, so it
+  // needs no separate sync for external changes (+/- taps, a preset chip).
   const [text, setText] = useState(String(value));
-
-  // Keep the field in sync with external value changes (e.g. +/- taps) while not editing.
-  useEffect(() => {
-    if (!editing) setText(String(value));
-  }, [value, editing]);
 
   const adjust = (delta: number) => {
     const next = round(value + delta);
+    if (wrap) {
+      onChange(wrapInto(next, min, max));
+      return;
+    }
     if (next < min || next > max) return;
     onChange(next);
   };
@@ -49,7 +63,7 @@ export function NumberStepper({
       setText(String(value));
       return;
     }
-    const next = clamp(round(parsed), min, max);
+    const next = wrap ? wrapInto(round(parsed), min, max) : clamp(round(parsed), min, max);
     setText(String(next));
     onChange(next);
   };
@@ -75,7 +89,7 @@ export function NumberStepper({
         onBlur={commit}
         onSubmitEditing={commit}
         selectTextOnFocus
-        keyboardType="decimal-pad"
+        keyboardType={wrap ? 'number-pad' : 'decimal-pad'}
         returnKeyType="done"
         accessibilityLabel="Value"
         className="min-w-[56px] text-center font-extrabold text-lg text-content"

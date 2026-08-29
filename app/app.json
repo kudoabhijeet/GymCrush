@@ -2,7 +2,7 @@
   "expo": {
     "name": "GymCrush",
     "slug": "gymcrush",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "gymcrush",
     "userInterfaceStyle": "automatic",
@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.kudoabhijeet.gymcrush",
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0a0c0b"
@@ -38,7 +39,13 @@
           "backgroundColor": "#0a0c0b"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#ccff00"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

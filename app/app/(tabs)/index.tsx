@@ -8,8 +8,8 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
 import { BRAND, BRAND_FG, useThemeColors } from '@/lib/theme';
-import { formatLongDate, formatRelativeDay } from '@/lib/format';
-import { localDateKey } from '@/lib/format';
+import { formatLongDate, formatRelativeDay, localDateKey } from '@/lib/format';
+import { useCalendarDay } from '@/lib/useCalendarDay';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { usePlans } from '@/features/plans/hooks';
@@ -25,7 +25,8 @@ export default function HomeScreen() {
   const macroTarget = useProfileStore((s) => s.macroTarget);
   const { data: plans } = usePlans();
   const { data: sessions } = useSessions();
-  const { data: dailyLog } = useDailyLog(localDateKey());
+  const today = useCalendarDay();
+  const { data: dailyLog } = useDailyLog(localDateKey(new Date(today)));
   const startSession = useActiveSessionStore((s) => s.start);
   const activeSession = useActiveSessionStore((s) => s.session);
 
@@ -45,7 +46,7 @@ export default function HomeScreen() {
   const weekDots = useMemo(() => {
     const days: { label: string; trained: boolean; isToday: boolean }[] = [];
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(Date.now() - i * 86_400_000);
+      const date = new Date(today - i * 86_400_000);
       const key = localDateKey(date);
       const trained = (sessions ?? []).some((s) => localDateKey(new Date(s.startedAt)) === key);
       days.push({
@@ -55,7 +56,7 @@ export default function HomeScreen() {
       });
     }
     return days;
-  }, [sessions]);
+  }, [sessions, today]);
 
   /** Sessions whose best e1RM beat all prior sessions for that exercise. */
   const recentPRs = useMemo(() => {
@@ -169,7 +170,7 @@ export default function HomeScreen() {
       {/* Macros summary */}
       <Card className="gap-3">
         <View className="flex-row items-center justify-between">
-          <AppText variant="label">Today's nutrition</AppText>
+          <AppText variant="label">Today&apos;s nutrition</AppText>
           <PressableScale onPress={() => router.push('/(tabs)/nutrition')} hitSlop={8}>
             <ArrowRight size={16} color={colors.contentFaint} />
           </PressableScale>

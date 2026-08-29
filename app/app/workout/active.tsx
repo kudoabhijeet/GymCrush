@@ -87,7 +87,7 @@ function fireSetComplete(
 
 /** Ticks once a second while mounted. */
 function useNow() {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
@@ -188,6 +188,11 @@ export default function ActiveWorkoutScreen() {
       .session?.exercises.find((e) => e.id === justPR.activeExerciseId)
       ?.sets.find((s) => s.id === justPR.setId);
 
+    // Deliberately an effect, not a render-phase adjustment like the two below:
+    // the celebration fires haptics and a delayed second tap, which must not run
+    // during render. `justPR` is a one-shot store signal cleared at the end, so
+    // this runs once per PR — the extra pass it costs is bounded and rare.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPrSetIds((prev) => (prev.has(justPR.setId) ? prev : new Set(prev).add(justPR.setId)));
     setCelebrateSetId(justPR.setId);
     setPrToast({
@@ -205,16 +210,22 @@ export default function ActiveWorkoutScreen() {
 
   // Un-completing or deleting a set retires its PR: re-completing it has to earn
   // the badge again, otherwise a corrected-downward set keeps a stale one.
-  useEffect(() => {
-    if (!session) return;
-    const completed = new Set(
-      session.exercises.flatMap((e) => e.sets.filter((s) => s.completed).map((s) => s.id)),
-    );
-    setPrSetIds((prev) => {
-      const next = new Set([...prev].filter((id) => completed.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [session]);
+  // Adjusted during render rather than in an effect so the badge never survives
+  // a frame past the set it belonged to. Dropping the id (rather than deriving
+  // the visible set) is what makes the PR need re-earning.
+  const [syncedSession, setSyncedSession] = useState(session);
+  if (syncedSession !== session) {
+    setSyncedSession(session);
+    if (session) {
+      const completed = new Set(
+        session.exercises.flatMap((e) => e.sets.filter((s) => s.completed).map((s) => s.id)),
+      );
+      setPrSetIds((prev) => {
+        const next = new Set([...prev].filter((id) => completed.has(id)));
+        return next.size === prev.size ? prev : next;
+      });
+    }
+  }
 
   useEffect(() => {
     if (!celebrateSetId) return;
@@ -305,7 +316,7 @@ export default function ActiveWorkoutScreen() {
       {finishError ? (
         <View className="mx-5 mb-2 rounded-xl bg-danger/10 p-3">
           <AppText variant="caption" className="text-danger">
-            Couldn't save the workout. Check your connection and tap Finish again.
+            Couldn&apos;t save the workout. Check your connection and tap Finish again.
           </AppText>
         </View>
       ) : null}
@@ -729,12 +740,17 @@ function SetRow({
   // turn 22.5 into 225.
   const [weightText, setWeightText] = useState(() => (set.weight != null ? `${set.weight}` : ''));
 
-  useEffect(() => {
+  // Resync when the store value changes elsewhere (copy-prev, ghosting). Done
+  // during render rather than in an effect so the field never paints the stale
+  // number first — this is the field the <3s logging bet runs through.
+  // `typed !== set.weight` keeps an in-progress decimal ("22.") from being
+  // clobbered by its own round-trip through the store.
+  const [syncedWeight, setSyncedWeight] = useState(set.weight);
+  if (syncedWeight !== set.weight) {
+    setSyncedWeight(set.weight);
     const typed = weightText === '' ? null : Number(weightText.replace(',', '.'));
     if (typed !== set.weight) setWeightText(set.weight != null ? `${set.weight}` : '');
-    // Only resync when the store value changes elsewhere (copy-prev, ghosting).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [set.weight]);
+  }
 
   const onChangeWeight = (text: string) => {
     setWeightText(text);

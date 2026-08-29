@@ -4,6 +4,8 @@ import type { LoggedExercise, WorkoutSession } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 import { mmkvStorage } from '@/lib/mmkvStorage';
 import { queryClient } from '@/lib/queryClient';
+import { cancelRestNotification, scheduleRestNotification } from '@/lib/notifications';
+import { useNotificationStore } from '@/features/profile/notificationStore';
 import { bestE1rmFor, e1rmOf, previousSetsFor } from './hooks';
 
 export interface ActiveSet {
@@ -291,6 +293,13 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           };
         });
 
+        // Only completing a set starts a rest period. Un-completing one leaves
+        // any running rest (and so its notification) untouched, matching the
+        // `restTimer` fallthrough below.
+        if (startRest && useNotificationStore.getState().restTimer) {
+          scheduleRestNotification(startRest);
+        }
+
         set({
           session: { ...session, exercises },
           restTimer: startRest
@@ -302,14 +311,23 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
 
       clearPR: () => set({ justPR: null }),
 
-      skipRest: () => set({ restTimer: null }),
+      skipRest: () => {
+        cancelRestNotification();
+        set({ restTimer: null });
+      },
 
-      discard: () => set({ session: null, restTimer: null, saving: false, justPR: null }),
+      discard: () => {
+        cancelRestNotification();
+        set({ session: null, restTimer: null, saving: false, justPR: null });
+      },
 
       finish: async () => {
         const { session, saving } = get();
         if (!session || saving) return null;
-        set({ saving: true });
+        // Disarm before the save round-trip — a rest alert armed mid-finish must
+        // not fire while requests are in flight or after storage is cleared.
+        cancelRestNotification();
+        set({ saving: true, restTimer: null });
 
         try {
           // 1. Start the session server-side. Passing planDayId would prefill
@@ -367,7 +385,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           // Keep `session` in memory so the discard-effect on the active screen
           // doesn't fire a competing navigation; the caller navigates to the
           // summary and then calls `discard()`.
-          set({ restTimer: null, saving: false });
+          set({ saving: false });
           return started.id;
         } catch {
           // Keep the local session so the user can retry.

@@ -19,10 +19,12 @@
     "db:seed:demo": "pnpm --filter @gymcrush/backend db:seed:demo",
     "db:studio": "pnpm --filter @gymcrush/backend prisma studio",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --no-bail test"
   },
   "devDependencies": {
     "prettier": "^3.4.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.11"
   }
 }
