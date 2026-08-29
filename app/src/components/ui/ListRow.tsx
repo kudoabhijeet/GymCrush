@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
+import { pressScale } from '@/lib/motion';
 import { useThemeColors } from '@/lib/theme';
+import { AppText } from './Text';
+import { Card } from './Card';
 import { PressableScale } from './PressableScale';
 
 interface ListRowProps {
@@ -22,14 +25,14 @@ export function ListRow({ title, subtitle, left, right, onPress, destructive }: 
     <>
       {left ? <View className="mr-3">{left}</View> : null}
       <View className="flex-1 gap-0.5">
-        <Text
-          className={`font-semibold text-[15px] ${destructive ? 'text-danger' : 'text-content'}`}
+        <AppText
+          variant="body"
+          className="font-semibold"
+          color={destructive ? 'text-danger' : 'text-content'}
         >
           {title}
-        </Text>
-        {subtitle ? (
-          <Text className="font-body text-[13px] text-content-muted">{subtitle}</Text>
-        ) : null}
+        </AppText>
+        {subtitle ? <AppText variant="caption">{subtitle}</AppText> : null}
       </View>
       {right ?? (onPress ? <ChevronRight size={18} color={colors.contentFaint} /> : null)}
     </>
@@ -39,7 +42,8 @@ export function ListRow({ title, subtitle, left, right, onPress, destructive }: 
     return (
       <PressableScale
         onPress={onPress}
-        scaleTo={0.98}
+        scaleTo={pressScale.card}
+        accessibilityRole="button"
         className="flex-row items-center px-4 py-3.5"
       >
         {content}
@@ -51,11 +55,7 @@ export function ListRow({ title, subtitle, left, right, onPress, destructive }: 
 
 /** Groups ListRows in an elevated card with hairline separators. */
 export function ListGroup({ children }: { children: ReactNode }) {
-  return (
-    <View className="overflow-hidden rounded-2xl border border-surface-muted bg-surface-elevated">
-      {children}
-    </View>
-  );
+  return <Card className="overflow-hidden p-0">{children}</Card>;
 }
 
 export function ListSeparator() {

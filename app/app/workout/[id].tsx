@@ -7,6 +7,7 @@ import type { LoggedSet } from '@gymcrush/shared';
 import { AppText } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -38,7 +39,7 @@ export default function WorkoutSummaryScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const units = useProfileStore((s) => s.units);
-  const { data: session, isLoading } = useSession(id);
+  const { data: session, isPending, isError, refetch } = useSession(id);
   const { data: sessions } = useSessions();
 
   // Compared against every other session, so a PR here means the same thing it
@@ -100,7 +101,11 @@ export default function WorkoutSummaryScreen() {
     <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
       <ScreenHeader title={session?.name ?? 'Workout'} />
 
-      {isLoading || !session ? (
+      {isError ? (
+        <View className="px-5 pt-2">
+          <ErrorState title="Couldn't load this workout" onRetry={() => void refetch()} />
+        </View>
+      ) : isPending || !session ? (
         <View className="gap-3 px-5 pt-2">
           <Skeleton className="h-24 rounded-2xl" />
           <Skeleton className="h-48 rounded-2xl" />

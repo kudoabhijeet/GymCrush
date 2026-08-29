@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Linking, ScrollView, Switch, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { AlarmClock, Bell, BellOff } from 'lucide-react-native';
+import { AppSwitch } from '@/components/ui/AppSwitch';
 import { AppText } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +11,7 @@ import { Chip } from '@/components/ui/Chip';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
 import { NumberStepper } from '@/components/ui/NumberStepper';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { durations } from '@/lib/motion';
 import { useThemeColors } from '@/lib/theme';
 import { hasNotificationPermission, requestNotificationPermission } from '@/lib/notifications';
 import { useNotificationStore } from '@/features/profile/notificationStore';
@@ -83,12 +85,6 @@ export default function NotificationsScreen() {
     if (granted) setter(true);
   };
 
-  const switchProps = {
-    trackColor: { false: colors.surfaceMuted, true: colors.brand },
-    ios_backgroundColor: colors.surfaceMuted,
-    thumbColor: colors.surfaceElevated,
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
       <ScreenHeader title="Notifications" />
@@ -97,7 +93,7 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {blocked ? (
-          <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)}>
+          <Animated.View entering={FadeIn.duration(durations.enter)} exiting={FadeOut.duration(durations.exit)}>
             <Card className="gap-3 border-warning/30 bg-warning/10">
               <View className="flex-row items-center gap-3">
                 <View className="h-9 w-9 items-center justify-center rounded-xl bg-warning/20">
@@ -133,12 +129,11 @@ export default function NotificationsScreen() {
                 </View>
               }
               right={
-                <Switch
+                <AppSwitch
                   value={restTimer}
                   onValueChange={(v) => toggle('rest', v)}
                   disabled={requesting !== null}
                   accessibilityLabel="Rest timer alerts"
-                  {...switchProps}
                 />
               }
             />
@@ -152,12 +147,11 @@ export default function NotificationsScreen() {
                 </View>
               }
               right={
-                <Switch
+                <AppSwitch
                   value={dailyReminder}
                   onValueChange={(v) => toggle('daily', v)}
                   disabled={requesting !== null}
                   accessibilityLabel="Daily reminder"
-                  {...switchProps}
                 />
               }
             />
@@ -165,7 +159,7 @@ export default function NotificationsScreen() {
         </View>
 
         {dailyReminder ? (
-          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
+          <Animated.View entering={FadeIn.duration(durations.enter)} exiting={FadeOut.duration(durations.exit)}>
             <Card className="gap-4">
               <View className="items-center gap-1">
                 <AppText variant="label">Reminder time</AppText>

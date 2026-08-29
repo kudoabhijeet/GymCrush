@@ -1,6 +1,7 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { AppText } from './Text';
 
-type Tone = 'brand' | 'neutral' | 'accent' | 'success' | 'danger';
+type Tone = 'brand' | 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
 
 interface BadgeProps {
   label: string;
@@ -12,6 +13,7 @@ const tones: Record<Tone, { bg: string; text: string }> = {
   neutral: { bg: 'bg-surface-muted', text: 'text-content-muted' },
   accent: { bg: 'bg-accent/15', text: 'text-accent' },
   success: { bg: 'bg-success/15', text: 'text-success' },
+  warning: { bg: 'bg-warning/15', text: 'text-warning' },
   danger: { bg: 'bg-danger/15', text: 'text-danger' },
 };
 
@@ -20,7 +22,9 @@ export function Badge({ label, tone = 'neutral' }: BadgeProps) {
   const t = tones[tone];
   return (
     <View className={`self-start rounded-full px-2.5 py-1 ${t.bg}`}>
-      <Text className={`font-semibold text-[11px] uppercase tracking-wide ${t.text}`}>{label}</Text>
+      <AppText variant="label" color={t.text}>
+        {label}
+      </AppText>
     </View>
   );
 }

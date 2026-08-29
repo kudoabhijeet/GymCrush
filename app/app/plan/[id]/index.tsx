@@ -8,44 +8,53 @@ import { Badge } from '@/components/ui/Badge';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { haptics } from '@/lib/haptics';
 import { BRAND_FG, useThemeColors } from '@/lib/theme';
+import { toast } from '@/lib/toastStore';
 import { formatPrescription } from '@/lib/format';
 import { useDeletePlan, useDuplicatePlan, usePlan } from '@/features/plans/hooks';
 import { exerciseLookup } from '@/features/exercises/hooks';
-import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
+import { useStartSession } from '@/features/workout/useStartSession';
 import type { PlanDay } from '@gymcrush/shared';
 
 export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useThemeColors();
-  const { data: plan, isLoading } = usePlan(id);
+  const { data: plan, isPending, isError, refetch } = usePlan(id);
   const duplicatePlan = useDuplicatePlan();
   const deletePlan = useDeletePlan();
-  const startSession = useActiveSessionStore((s) => s.start);
+  const { startPlanDay } = useStartSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Delete confirms as a second step *inside* the options sheet. Closing this
+  // modal and presenting a ConfirmSheet in the same commit is the classic RN
+  // case where the second modal never appears — iOS dismissal is async.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const startDay = (day: PlanDay) => {
     if (!plan) return;
-    startSession({
-      name: day.name,
-      planId: plan.id,
-      planDayId: day.id,
-      prescriptions: day.exercises.map((e) => ({
-        exerciseId: e.exerciseId,
-        targetSets: e.targetSets,
-        targetReps: e.targetReps,
-        targetRpe: e.targetRpe,
-        restSeconds: e.restSeconds,
-        notes: e.notes,
-      })),
+    startPlanDay(plan, day);
+  };
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setConfirmingDelete(false);
+  };
+
+  const onDeletePlan = () => {
+    haptics.destructive();
+    closeMenu();
+    deletePlan.mutate(id!, {
+      onSuccess: () => router.back(),
+      onError: () =>
+        toast.show({ message: "Couldn't delete the plan. Try again.", tone: 'warning' }),
     });
-    router.push('/workout/active');
   };
 
   return (
@@ -61,7 +70,11 @@ export default function PlanDetailScreen() {
         }
       />
 
-      {isLoading || !plan ? (
+      {isError ? (
+        <View className="px-5 pt-2">
+          <ErrorState title="Couldn't load this plan" onRetry={() => void refetch()} />
+        </View>
+      ) : isPending || !plan ? (
         <View className="gap-3 px-5 pt-2">
           <Skeleton className="h-24 rounded-2xl" />
           <Skeleton className="h-48 rounded-2xl" />
@@ -135,39 +148,54 @@ export default function PlanDetailScreen() {
         </ScrollView>
       )}
 
-      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Plan options">
-        <View className="gap-1">
-          {/* Templates are owned by the system account — editing/deleting would 404. */}
-          {plan?.isTemplate ? null : (
+      <BottomSheet
+        visible={menuOpen}
+        onClose={closeMenu}
+        title={confirmingDelete ? 'Delete plan?' : 'Plan options'}
+      >
+        {confirmingDelete ? (
+          <View className="gap-3">
+            <AppText variant="body">
+              {plan?.name ?? 'This plan'} and its days are gone for good. Logged workouts are kept.
+            </AppText>
+            <Button label="Delete plan" variant="danger" onPress={onDeletePlan} />
+            <Button
+              label="Keep plan"
+              variant="secondary"
+              onPress={() => setConfirmingDelete(false)}
+            />
+          </View>
+        ) : (
+          <View className="gap-1">
+            {/* Templates are owned by the system account — editing/deleting would 404. */}
+            {plan?.isTemplate ? null : (
+              <ListRow
+                title="Edit plan"
+                left={<Pencil size={20} color={colors.content} />}
+                onPress={() => {
+                  closeMenu();
+                  router.push({ pathname: '/plan/[id]/edit', params: { id: id! } });
+                }}
+              />
+            )}
             <ListRow
-              title="Edit plan"
-              left={<Pencil size={20} color={colors.content} />}
+              title={plan?.isTemplate ? 'Use this template' : 'Duplicate'}
+              left={<Copy size={20} color={colors.content} />}
               onPress={() => {
-                setMenuOpen(false);
-                router.push({ pathname: '/plan/[id]/edit', params: { id: id! } });
+                closeMenu();
+                duplicatePlan.mutate(id!, { onSuccess: () => router.back() });
               }}
             />
-          )}
-          <ListRow
-            title={plan?.isTemplate ? 'Use this template' : 'Duplicate'}
-            left={<Copy size={20} color={colors.content} />}
-            onPress={() => {
-              setMenuOpen(false);
-              duplicatePlan.mutate(id!, { onSuccess: () => router.back() });
-            }}
-          />
-          {plan?.isTemplate ? null : (
-            <ListRow
-              title="Delete plan"
-              destructive
-              left={<Trash2 size={20} color={colors.danger} />}
-              onPress={() => {
-                setMenuOpen(false);
-                deletePlan.mutate(id!, { onSuccess: () => router.back() });
-              }}
-            />
-          )}
-        </View>
+            {plan?.isTemplate ? null : (
+              <ListRow
+                title="Delete plan"
+                destructive
+                left={<Trash2 size={20} color={colors.danger} />}
+                onPress={() => setConfirmingDelete(true)}
+              />
+            )}
+          </View>
+        )}
       </BottomSheet>
     </SafeAreaView>
   );

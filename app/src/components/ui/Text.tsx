@@ -5,6 +5,7 @@ export type TextVariant =
   | 'title' // screen titles
   | 'heading' // section headings
   | 'subheading' // card titles, emphasized rows
+  | 'stat' // big numeric readouts (StatTile values, tile metrics)
   | 'body' // default copy
   | 'caption' // secondary copy
   | 'label'; // tiny uppercase section labels
@@ -30,6 +31,7 @@ const variantClasses: Record<TextVariant, string> = {
   title: 'font-extrabold text-[28px] leading-9 tracking-tight',
   heading: 'font-bold text-xl leading-7',
   subheading: 'font-semibold text-base leading-6',
+  stat: 'font-extrabold text-[22px] leading-7 tracking-tight',
   body: 'font-body text-[15px] leading-[22px]',
   caption: 'font-medium text-[13px] leading-[18px]',
   label: 'font-semibold text-[11px] leading-4 uppercase tracking-widest',
@@ -40,6 +42,7 @@ const variantColors: Record<TextVariant, string> = {
   title: 'text-content',
   heading: 'text-content',
   subheading: 'text-content',
+  stat: 'text-content',
   body: 'text-content',
   caption: 'text-content-muted',
   label: 'text-content-faint',

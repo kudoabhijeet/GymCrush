@@ -18,14 +18,18 @@ interface CardProps extends ViewProps {
  * own, keeping exactly one of each on the element.
  */
 const hasBg = (c: string) => /(^|\s)bg-/.test(c);
-const hasBorder = (c: string) => /(^|\s)border(-|\s|$)/.test(c);
+// Width and color are dropped independently: a caller passing only
+// `border-warning/30` still needs the default `border` to supply the width.
+const hasBorderWidth = (c: string) => /(^|\s)border(-[xytrbl])?(-\d+)?(?=\s|$)/.test(c);
+const hasBorderColor = (c: string) => /(^|\s)border-(?!dashed\b|dotted\b|solid\b)[a-z]{2,}/.test(c);
 const hasPadding = (c: string) => /(^|\s)p[xytrbl]?-/.test(c);
 const hasRadius = (c: string) => /(^|\s)rounded/.test(c);
 
 function baseClasses(className: string): string {
   return [
     hasRadius(className) ? '' : 'rounded-2xl',
-    hasBorder(className) ? '' : 'border border-surface-muted',
+    hasBorderWidth(className) ? '' : 'border',
+    hasBorderColor(className) ? '' : 'border-surface-muted',
     hasBg(className) ? '' : 'bg-surface-elevated',
     hasPadding(className) ? '' : 'p-4',
   ]
@@ -38,7 +42,7 @@ export function Card({ children, onPress, className = '', ...rest }: CardProps) 
 
   if (onPress) {
     return (
-      <PressableScale onPress={onPress} className={cls}>
+      <PressableScale onPress={onPress} accessibilityRole="button" className={cls} {...rest}>
         {children}
       </PressableScale>
     );

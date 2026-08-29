@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Platform, TextInput, View, type TextInputProps } from 'react-native';
 import { useThemeColors } from '@/lib/theme';
+import { AppText } from './Text';
 
 interface TextFieldProps extends TextInputProps {
   label?: string;
@@ -9,9 +10,23 @@ interface TextFieldProps extends TextInputProps {
   leftIcon?: ReactNode;
 }
 
-export function TextField({ label, error, leftIcon, onFocus, onBlur, ...rest }: TextFieldProps) {
+export function TextField({
+  label,
+  error,
+  leftIcon,
+  onFocus,
+  onBlur,
+  accessibilityLabel,
+  ...rest
+}: TextFieldProps) {
   const colors = useThemeColors();
   const [focused, setFocused] = useState(false);
+
+  // Android announces the error via the live region below; iOS has no live
+  // regions, so the transition is announced imperatively.
+  useEffect(() => {
+    if (error && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(error);
+  }, [error]);
 
   const borderClass = error
     ? 'border-danger'
@@ -21,9 +36,7 @@ export function TextField({ label, error, leftIcon, onFocus, onBlur, ...rest }: 
 
   return (
     <View className="gap-2">
-      {label ? (
-        <Text className="font-medium text-sm text-content-muted">{label}</Text>
-      ) : null}
+      {label ? <AppText variant="caption">{label}</AppText> : null}
       <View
         className={`flex-row items-center gap-3 rounded-xl border bg-surface-elevated px-4 ${borderClass}`}
       >
@@ -31,6 +44,9 @@ export function TextField({ label, error, leftIcon, onFocus, onBlur, ...rest }: 
         <TextInput
           placeholderTextColor={colors.contentFaint}
           selectionColor={colors.scheme === 'dark' ? colors.brand : colors.brandText}
+          // The visual label isn't programmatically associated in RN, so it
+          // (and any error) is composed into the input's own label.
+          accessibilityLabel={accessibilityLabel ?? (label && error ? `${label}, ${error}` : label)}
           className="flex-1 py-3.5 font-body text-base text-content"
           onFocus={(e) => {
             setFocused(true);
@@ -43,7 +59,11 @@ export function TextField({ label, error, leftIcon, onFocus, onBlur, ...rest }: 
           {...rest}
         />
       </View>
-      {error ? <Text className="font-medium text-sm text-danger">{error}</Text> : null}
+      {error ? (
+        <AppText variant="caption" color="text-danger" accessibilityLiveRegion="polite">
+          {error}
+        </AppText>
+      ) : null}
     </View>
   );
 }

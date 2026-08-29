@@ -57,8 +57,25 @@ won't pick up new native code, since this app runs on a custom dev client (`expo
 - **Modal/sheet entrances**: `BottomSheet`'s fade/slide (`app/src/components/ui/BottomSheet.tsx`).
 - **Status markers**: `Badge` (`app/src/components/ui/Badge.tsx`) — its own doc comment already
   anticipates use cases like PR markers.
-- **Haptics**: `expo-haptics`, distinct feedback types for distinct meanings (e.g. set-complete vs.
-  rest-timer-done vs. PR) so the app doesn't collapse everything into one generic buzz.
+- **Haptics**: `app/src/lib/haptics.ts` is the only module that talks to `expo-haptics` — a semantic
+  vocabulary (`tap`/`selection`/`setComplete`/`restDone`/`pr`/`success`/`warning`/`destructive`) so
+  distinct meanings keep distinct feedback. Call the semantic, never `expo-haptics` directly. Restraint
+  is deliberate: tab switches and other high-frequency chrome stay silent.
+- **Motion**: durations, springs, and press-scale depths live in `app/src/lib/motion.ts` — no inline
+  animation constants. `PressableScale`'s `scaleTo` takes a named `pressScale.*` depth.
+- **Toasts & confirms**: `toast.*` (`app/src/lib/toastStore.ts`; `ToastHost` is mounted once in the
+  root layout) for transient feedback and undo actions; `ConfirmSheet`/`useConfirmSheet`
+  (`app/src/components/ui/ConfirmSheet.tsx`, promise-based) for destructive confirmation. Destructive
+  actions either confirm first or remove instantly with an undo toast — `Alert.alert` is not used.
+  **Never open a ConfirmSheet while another modal is closing** — RN modal dismissal is async on iOS and
+  the second modal can silently fail to present; confirm as a step inside the open sheet instead
+  (`app/app/plan/[id]/index.tsx` does this). An undo toast must not outlive what it would restore:
+  `activeSessionStore`'s `discard`/`finish` call `toast.dismiss()` for exactly that reason.
+- **Screen states**: `if (isError) return <ErrorState onRetry={refetch} />` before the loading branch,
+  and loading guards use `isPending` (never `isLoading || !data`, which skeletons forever on error).
+  `SkeletonList` covers the standard loading stanza; `ScreenScaffold`'s `onRefresh` prop wires
+  pull-to-refresh on tab screens. Note the tab bar is opaque and non-absolute, so tab content is laid
+  out above it — `ScreenScaffold`'s bottom padding is scroll slack, not tab-bar clearance.
 - **Notifications**: `app/src/lib/notifications.ts` is the only place that talks to `expo-notifications`
   (permissions, Android channels, scheduling). Prefs live in `profile/notificationStore.ts`, on
   `kvStorage` like the other device prefs — not MMKV, which is user-scoped and wiped on sign-out. The rest
@@ -71,10 +88,15 @@ won't pick up new native code, since this app runs on a custom dev client (`expo
 
 ## Component library (`app/src/components/ui/`)
 
-Badge, BottomSheet, Button, Card, Chip, EmptyState, IconButton, ListRow (+ListGroup/ListSeparator),
+AppSwitch, Badge, BottomSheet (drag-to-dismiss + keyboard-avoiding), Button, Card, Chip, ConfirmSheet
+(+`useConfirmSheet`), EmptyState, ErrorState, IconButton, ListRow (+ListGroup/ListSeparator),
 NumberStepper, PressableScale, ProgressBar, ProgressRing, ScreenHeader, ScreenScaffold, SegmentedControl,
-Skeleton, Sparkline, SplashOverlay, StatTile, Text (`AppText`, variant system: display/title/heading/
-subheading/body/caption/label), TextField. New UI should compose these rather than styling from scratch.
+Skeleton (+SkeletonList), Sparkline, SplashOverlay, StatTile, Text (`AppText`, variant system: display/
+title/heading/subheading/stat/body/caption/label), TextField, ToastHost. New UI should compose these
+rather than styling from scratch. The logger's own components (ExerciseCard, SetRow, RestTimerBar,
+SetAdvanceBar, …) live in `app/src/features/workout/components/`, with the cross-card keyboard focus
+flow in `app/src/features/workout/useSetFocusFlow.ts` — `app/app/workout/active.tsx` is orchestration
+only.
 Theming: `app/src/lib/theme.ts` mirrors the NativeWind CSS-variable tokens (light/dark, brand lime
 `#ccff00`) for the props that can't take a className (icon colors, placeholders, status bar).
 
@@ -109,7 +131,7 @@ animation/motion, visual polish, copy. Keep backend, data-model, and infra work 
 
 ## Testing
 
-Vitest, run with `pnpm test`. Two suites exist so far:
+Vitest, run with `pnpm test`. Suites so far:
 
 - `packages/shared/src/calc.test.ts` — the BMR/TDEE/macro formulas. Expected values are derived by hand
   from the equations in PRD.md, **not** snapshotted from the implementation, so a changed constant fails
@@ -117,6 +139,11 @@ Vitest, run with `pnpm test`. Two suites exist so far:
 - `app/src/lib/notifications.test.ts` + `app/src/features/profile/notificationStore.test.ts` — the
   notification scheduling lifecycle, against a fake that models the OS keeping schedules by identifier
   across a process restart (the property that made the original in-memory-id bug invisible).
+- `app/src/lib/haptics.test.ts` — the semantic→native haptic mapping (PR thud-tick timing, web no-op).
+- `app/src/lib/toastStore.test.ts` — toast lifecycle: latest-wins replacement, timer ownership,
+  action-toast minimum duration.
+- `app/src/features/workout/activeSessionStore.test.ts` — rest-timer `adjustRest` math + notification
+  re-arming, and `restoreExercise` (the remove-exercise undo path).
 
 `app/vitest.config.mts` runs in a plain node environment and mocks native modules in `vitest.setup.ts`.
 It covers **logic only** — stores and `lib/` helpers. Rendering components needs the jest-expo transform

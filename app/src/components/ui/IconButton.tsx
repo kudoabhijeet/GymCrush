@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { pressScale } from '@/lib/motion';
 import { PressableScale } from './PressableScale';
 
 interface IconButtonProps {
@@ -13,7 +14,7 @@ export function IconButton({ icon, onPress, variant = 'tonal', accessibilityLabe
   return (
     <PressableScale
       onPress={onPress}
-      scaleTo={0.9}
+      scaleTo={pressScale.icon}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       hitSlop={8}
