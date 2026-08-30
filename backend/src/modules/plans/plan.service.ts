@@ -45,7 +45,7 @@ function loadTemplates(): Promise<WorkoutPlan[]> {
   });
 }
 
-/** The user's own plans plus any templates, with optional explorer filters. */
+/** The user's own plans. Templates are served separately via `templatesOnly`. */
 export async function listPlans(
   userId: string,
   filters: PlanExplorerQuery,
@@ -58,7 +58,7 @@ export async function listPlans(
 
   const rows = await prisma.workoutPlan.findMany({
     where: {
-      OR: [{ ownerId: userId }, { isTemplate: true }],
+      ownerId: userId,
       ...(filters.goal ? { goal: filters.goal } : {}),
       ...(filters.daysPerWeek ? { daysPerWeek: filters.daysPerWeek } : {}),
     },

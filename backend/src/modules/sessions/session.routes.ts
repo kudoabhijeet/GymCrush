@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { logSetSchema, startSessionSchema } from '@gymcrush/shared';
+import {
+  commitSessionSchema,
+  logSetSchema,
+  startSessionSchema,
+  updateSetSchema,
+} from '@gymcrush/shared';
 import { requireAuth, type AuthedRequest } from '../../middleware/auth.js';
 import { asyncHandler } from '../../middleware/error.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
@@ -29,6 +34,17 @@ sessionRouter.post(
   }),
 );
 
+// POST /api/sessions/commit  — persist a finished workout in one round-trip
+sessionRouter.post(
+  '/commit',
+  validateBody(commitSessionSchema),
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    const session = await sessionService.commitSession(userId, req.body);
+    res.status(201).json({ session });
+  }),
+);
+
 // GET /api/sessions?limit=  — session history, newest first
 sessionRouter.get(
   '/',
@@ -49,6 +65,17 @@ sessionRouter.post(
     const { userId } = req as AuthedRequest;
     const session = await sessionService.logSet(userId, req.body);
     res.json({ session });
+  }),
+);
+
+// PATCH /api/sessions/sets/:setId  — correct a logged set (finished ok)
+sessionRouter.patch(
+  '/sets/:setId',
+  validateBody(updateSetSchema),
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    const set = await sessionService.updateSet(userId, req.params.setId, req.body);
+    res.json({ set });
   }),
 );
 

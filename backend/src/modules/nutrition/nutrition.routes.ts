@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   createFoodSchema,
   logFoodSchema,
+  logWeightSchema,
   macroTargetSchema,
   upsertBodyProfileSchema,
 } from '@gymcrush/shared';
@@ -18,8 +19,6 @@ const logQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 type LogQuery = z.infer<typeof logQuerySchema>;
-
-const logWeightSchema = z.object({ weightKg: z.number().min(30).max(300) });
 
 export const nutritionRouter = Router();
 
@@ -151,5 +150,26 @@ nutritionRouter.post(
     const { userId } = req as AuthedRequest;
     const entry = await nutritionService.logWeight(userId, req.body.weightKg);
     res.status(201).json({ entry });
+  }),
+);
+
+// PATCH /api/nutrition/weight/:id  — correct a weigh-in (typo fix)
+nutritionRouter.patch(
+  '/weight/:id',
+  validateBody(logWeightSchema),
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    const entry = await nutritionService.updateWeight(userId, req.params.id, req.body.weightKg);
+    res.json({ entry });
+  }),
+);
+
+// DELETE /api/nutrition/weight/:id
+nutritionRouter.delete(
+  '/weight/:id',
+  asyncHandler(async (req, res) => {
+    const { userId } = req as AuthedRequest;
+    await nutritionService.deleteWeight(userId, req.params.id);
+    res.status(204).send();
   }),
 );

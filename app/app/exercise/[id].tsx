@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,24 +9,43 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Sparkline } from '@/components/ui/Sparkline';
 import { StatTile } from '@/components/ui/StatTile';
 import { useThemeColors } from '@/lib/theme';
-import { formatRelativeDay } from '@/lib/format';
+import { formatRelativeDay, formatWeight, weightUnitLabel } from '@/lib/format';
+import { useProfileStore } from '@/features/profile/profileStore';
 import { exerciseLookup } from '@/features/exercises/hooks';
 import { useExerciseHistory } from '@/features/workout/hooks';
+
+type Metric = 'e1rm' | 'weight' | 'volume';
 
 export default function ExerciseHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useThemeColors();
+  const units = useProfileStore((s) => s.units);
+  const unit = weightUnitLabel(units);
   const info = id ? exerciseLookup(id) : undefined;
   const { data: history, isPending, isError, refetch } = useExerciseHistory(id);
   const [chartWidth, setChartWidth] = useState(0);
+  const [metric, setMetric] = useState<Metric>('e1rm');
 
   const best = history?.reduce((a, b) => (b.e1rm > a.e1rm ? b : a), history[0]);
-  /** Chronological e1RM series for the chart. */
-  const series = [...(history ?? [])].reverse().map((p) => p.e1rm);
+  const chronological = useMemo(() => [...(history ?? [])].reverse(), [history]);
+  const series = useMemo(() => {
+    switch (metric) {
+      case 'weight':
+        return chronological.map((p) => p.maxWeight);
+      case 'volume':
+        return chronological.map((p) => p.totalVolume);
+      default:
+        return chronological.map((p) => p.e1rm);
+    }
+  }, [chronological, metric]);
+
+  const metricLabel =
+    metric === 'e1rm' ? 'Estimated 1RM' : metric === 'weight' ? 'Best weight' : 'Session volume';
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
@@ -50,7 +69,10 @@ export default function ExerciseHistoryScreen() {
           />
         </View>
       ) : (
-        <ScrollView contentContainerClassName="gap-5 px-5 pb-16 pt-2" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerClassName="gap-5 px-5 pb-16 pt-2"
+          showsVerticalScrollIndicator={false}
+        >
           <View className="flex-row gap-2">
             {info ? <Badge label={info.muscleGroup.replace('_', ' ')} tone="brand" /> : null}
             {info ? <Badge label={info.equipment.replace('_', ' ')} /> : null}
@@ -59,13 +81,17 @@ export default function ExerciseHistoryScreen() {
           <View className="flex-row gap-3">
             <StatTile
               label="Best set"
-              value={best ? `${best.bestWeight} × ${best.bestReps}` : '—'}
+              value={
+                best
+                  ? `${formatWeight(best.bestWeight, units)} × ${best.bestReps}`
+                  : '—'
+              }
               icon={<Award size={13} color={colors.contentFaint} />}
             />
             <StatTile
               label="Est. 1RM"
-              value={best ? `${best.e1rm}` : '—'}
-              unit="kg"
+              value={best ? formatWeight(best.e1rm, units) : '—'}
+              unit={unit}
               icon={<TrendingUp size={13} color={colors.contentFaint} />}
             />
           </View>
@@ -77,13 +103,22 @@ export default function ExerciseHistoryScreen() {
                 setChartWidth(e.nativeEvent.layout.width - 32)
               }
             >
-              <AppText variant="label">Estimated 1RM trend</AppText>
+              <SegmentedControl
+                options={[
+                  { value: 'e1rm', label: 'e1RM' },
+                  { value: 'weight', label: 'Weight' },
+                  { value: 'volume', label: 'Volume' },
+                ]}
+                value={metric}
+                onChange={setMetric}
+              />
+              <AppText variant="label">{metricLabel}</AppText>
               {chartWidth > 0 ? (
                 <Sparkline
                   data={series}
                   width={chartWidth}
                   height={90}
-                  accessibilityLabel={`Estimated one rep max trend, currently ${best?.e1rm ?? 0} kilograms`}
+                  accessibilityLabel={`${metricLabel} trend`}
                 />
               ) : null}
             </Card>
@@ -96,13 +131,13 @@ export default function ExerciseHistoryScreen() {
                 <Card key={point.sessionId} className="flex-row items-center justify-between">
                   <View className="gap-0.5">
                     <AppText variant="subheading">
-                      {point.bestWeight} kg × {point.bestReps}
+                      {formatWeight(point.bestWeight, units)} {unit} × {point.bestReps}
                     </AppText>
                     <AppText variant="caption">{formatRelativeDay(point.date)}</AppText>
                   </View>
                   <View className="items-end gap-0.5">
                     <AppText className="font-extrabold text-[15px] text-content">
-                      {point.e1rm} kg
+                      {formatWeight(point.e1rm, units)} {unit}
                     </AppText>
                     <AppText variant="caption">
                       e1RM · {Math.round(point.totalVolume)} kg vol

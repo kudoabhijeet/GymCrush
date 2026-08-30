@@ -209,11 +209,27 @@ export interface WeightEntry {
   loggedAt: string;
 }
 
+function mapWeightEntry(row: { id: string; weightKg: number; loggedAt: Date }): WeightEntry {
+  return { id: row.id, weightKg: row.weightKg, loggedAt: row.loggedAt.toISOString() };
+}
+
+/** Sync BodyProfile.weightKg only when `entryId` is the user's latest weigh-in. */
+async function syncProfileIfLatest(userId: string, entryId: string, weightKg: number | null) {
+  const latest = await prisma.bodyMetricLog.findFirst({
+    where: { ownerId: userId },
+    orderBy: { loggedAt: 'desc' },
+    select: { id: true, weightKg: true },
+  });
+  if (!latest || latest.id !== entryId) return;
+  const next = weightKg ?? latest.weightKg;
+  await prisma.bodyProfile.updateMany({ where: { ownerId: userId }, data: { weightKg: next } });
+}
+
 /** Log a bodyweight measurement and keep the body profile's weight in sync. */
 export async function logWeight(userId: string, weightKg: number): Promise<WeightEntry> {
   const entry = await prisma.bodyMetricLog.create({ data: { ownerId: userId, weightKg } });
   await prisma.bodyProfile.updateMany({ where: { ownerId: userId }, data: { weightKg } });
-  return { id: entry.id, weightKg: entry.weightKg, loggedAt: entry.loggedAt.toISOString() };
+  return mapWeightEntry(entry);
 }
 
 export async function getWeightHistory(userId: string): Promise<WeightEntry[]> {
@@ -221,5 +237,64 @@ export async function getWeightHistory(userId: string): Promise<WeightEntry[]> {
     where: { ownerId: userId },
     orderBy: { loggedAt: 'asc' },
   });
-  return rows.map((r) => ({ id: r.id, weightKg: r.weightKg, loggedAt: r.loggedAt.toISOString() }));
+  return rows.map(mapWeightEntry);
+}
+
+/** Update a weigh-in's value. Syncs BodyProfile only when this row is the latest. */
+export async function updateWeight(
+  userId: string,
+  entryId: string,
+  weightKg: number,
+): Promise<WeightEntry> {
+  const existing = await prisma.bodyMetricLog.findFirst({
+    where: { id: entryId, ownerId: userId },
+  });
+  if (!existing) throw notFound('Weight entry not found');
+
+  const entry = await prisma.bodyMetricLog.update({
+    where: { id: entryId },
+    data: { weightKg },
+  });
+  await syncProfileIfLatest(userId, entryId, weightKg);
+  return mapWeightEntry(entry);
+}
+
+/**
+ * Delete a weigh-in. If it was the latest, BodyProfile is re-synced to the new
+ * latest (or left alone when the log is empty).
+ */
+export async function deleteWeight(userId: string, entryId: string): Promise<void> {
+  const existing = await prisma.bodyMetricLog.findFirst({
+    where: { id: entryId, ownerId: userId },
+  });
+  if (!existing) throw notFound('Weight entry not found');
+
+  const wasLatest =
+    (
+      await prisma.bodyMetricLog.findFirst({
+        where: { ownerId: userId },
+        orderBy: { loggedAt: 'desc' },
+        select: { id: true },
+      })
+    )?.id === entryId;
+
+  await prisma.bodyMetricLog.delete({ where: { id: entryId } });
+
+  if (!wasLatest) return;
+
+  const next = await prisma.bodyMetricLog.findFirst({
+    where: { ownerId: userId },
+    orderBy: { loggedAt: 'desc' },
+    select: { weightKg: true },
+  });
+  if (next) {
+    await prisma.bodyProfile.updateMany({
+      where: { ownerId: userId },
+      data: { weightKg: next.weightKg },
+    });
+    return;
+  }
+
+  // Log is empty — profile.weightKg stays as-is (required field, may predate
+  // weigh-ins from onboarding). Client invalidates body-profile so UI refetches.
 }

@@ -25,6 +25,7 @@ export default function ResultsScreen() {
   const draft = useOnboardingStore();
   const setBodyProfile = useProfileStore((s) => s.setBodyProfile);
   const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
+  const onboarded = useProfileStore((s) => s.onboarded);
   const upsertProfile = useUpsertBodyProfile();
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +56,8 @@ export default function ResultsScreen() {
       const { profile: saved, target: savedTarget } = await upsertProfile.mutateAsync(profile);
       setBodyProfile(saved, savedTarget);
       completeOnboarding();
-      router.replace('/(tabs)');
+      // Re-run from Profile: land back on Profile. First-run: enter the app.
+      router.replace(onboarded ? '/(tabs)/profile' : '/(tabs)');
     } catch {
       setError("Couldn't save your profile. Check your connection and try again.");
     }
@@ -121,7 +123,12 @@ export default function ResultsScreen() {
             {error}
           </AppText>
         ) : null}
-        <Button label="Let's go" size="lg" loading={upsertProfile.isPending} onPress={onFinish} />
+        <Button
+          label={onboarded ? 'Save targets' : "Let's go"}
+          size="lg"
+          loading={upsertProfile.isPending}
+          onPress={onFinish}
+        />
       </View>
     </View>
   );

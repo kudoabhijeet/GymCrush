@@ -1,20 +1,33 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Award, Clock, Dumbbell, Weight } from 'lucide-react-native';
+import { Award, Clock, Dumbbell, Trash2, Weight } from 'lucide-react-native';
 import type { LoggedSet } from '@gymcrush/shared';
 import { AppText } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { IconButton } from '@/components/ui/IconButton';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
+import { NumberStepper } from '@/components/ui/NumberStepper';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { StatTile } from '@/components/ui/StatTile';
+import { haptics } from '@/lib/haptics';
 import { useThemeColors } from '@/lib/theme';
-import { formatDuration, formatRelativeDay, weightUnitLabel } from '@/lib/format';
-import { e1rmOf, useSession, useSessions } from '@/features/workout/hooks';
+import { formatDuration, formatRelativeDay, fromKg, toKg, weightUnitLabel } from '@/lib/format';
+import {
+  e1rmOf,
+  setVolume,
+  useDeleteSession,
+  useSession,
+  useSessions,
+  useUpdateSet,
+} from '@/features/workout/hooks';
 import { exerciseLookup } from '@/features/exercises/hooks';
 import { useProfileStore } from '@/features/profile/profileStore';
 
@@ -34,13 +47,24 @@ interface ExerciseAnalysis {
   previous: LoggedSet | null;
 }
 
+type SheetMode =
+  | { kind: 'edit'; set: LoggedSet }
+  | { kind: 'confirmDelete' };
+
 export default function WorkoutSummaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useThemeColors();
   const units = useProfileStore((s) => s.units);
+  const unit = weightUnitLabel(units);
   const { data: session, isPending, isError, refetch } = useSession(id);
   const { data: sessions } = useSessions();
+  const updateSet = useUpdateSet(id);
+  const deleteSession = useDeleteSession();
+  const [sheet, setSheet] = useState<SheetMode | null>(null);
+  const [draftWeight, setDraftWeight] = useState(0);
+  const [draftReps, setDraftReps] = useState(0);
+  const [draftRpe, setDraftRpe] = useState(0);
 
   // Compared against every other session, so a PR here means the same thing it
   // did live in the logger: it beat the best e1RM this exercise has ever seen.
@@ -93,13 +117,64 @@ export default function WorkoutSummaryScreen() {
   const totalVolume =
     session?.exercises.reduce(
       (sum, e) =>
-        sum + workingSetsOf(e.sets).reduce((v, s) => v + (s.weight ?? 0) * (s.reps ?? 0), 0),
+        sum + workingSetsOf(e.sets).reduce((v, s) => v + setVolume(s.weight, s.reps), 0),
       0,
     ) ?? 0;
 
+  const openEdit = (set: LoggedSet) => {
+    haptics.tap();
+    setDraftWeight(fromKg(set.weight ?? 0, units));
+    setDraftReps(set.reps ?? 0);
+    setDraftRpe(set.rpe ?? 0);
+    setSheet({ kind: 'edit', set });
+  };
+
+  const closeSheet = () => setSheet(null);
+
+  const onSaveSet = () => {
+    if (sheet?.kind !== 'edit') return;
+    updateSet.mutate(
+      {
+        setId: sheet.set.id,
+        weight: toKg(draftWeight, units),
+        reps: draftReps,
+        rpe: draftRpe > 0 ? draftRpe : null,
+      },
+      { onSuccess: closeSheet },
+    );
+  };
+
+  const onDeleteSession = () => {
+    if (!id) return;
+    deleteSession.mutate(id, {
+      onSuccess: () => {
+        closeSheet();
+        router.replace('/(tabs)/log');
+      },
+    });
+  };
+
+  const sheetTitle =
+    sheet?.kind === 'confirmDelete'
+      ? 'Delete workout?'
+      : sheet?.kind === 'edit'
+        ? `Edit set ${sheet.set.setNumber}`
+        : undefined;
+
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
-      <ScreenHeader title={session?.name ?? 'Workout'} />
+      <ScreenHeader
+        title={session?.name ?? 'Workout'}
+        actions={
+          session ? (
+            <IconButton
+              icon={<Trash2 size={18} color={colors.danger} />}
+              onPress={() => setSheet({ kind: 'confirmDelete' })}
+              accessibilityLabel="Delete workout"
+            />
+          ) : undefined
+        }
+      />
 
       {isError ? (
         <View className="px-5 pt-2">
@@ -170,27 +245,36 @@ export default function WorkoutSummaryScreen() {
                     <AppText variant="caption">
                       Best:{' '}
                       <AppText className="font-bold text-[13px] text-content">
-                        {best ? `${best.weight ?? '—'} × ${best.reps ?? '—'}` : '—'}
+                        {best
+                          ? `${fromKg(best.weight ?? 0, units)} × ${best.reps ?? '—'}`
+                          : '—'}
                       </AppText>
                     </AppText>
                     <AppText variant="caption">
                       {previous
-                        ? `Last time ${previous.weight ?? '—'} × ${previous.reps ?? '—'}`
+                        ? `Last time ${fromKg(previous.weight ?? 0, units)} × ${previous.reps ?? '—'}`
                         : 'First time'}
                     </AppText>
                   </View>
                 </View>
-                <View className="gap-1.5">
+                <View className="gap-1">
                   {exercise.sets.map((set) => (
-                    <View key={set.id} className="flex-row items-center gap-3">
+                    <PressableScale
+                      key={set.id}
+                      onPress={() => openEdit(set)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit set ${set.setNumber}`}
+                      className="flex-row items-center gap-3 rounded-xl px-1 py-2"
+                    >
                       <AppText variant="caption" className="w-8 font-bold">
                         {set.setNumber}
                       </AppText>
                       <AppText variant="body" className="flex-1">
-                        {set.weight ?? '—'} {weightUnitLabel(units)} × {set.reps ?? '—'}
+                        {set.weight != null ? fromKg(set.weight, units) : '—'} {unit} ×{' '}
+                        {set.reps ?? '—'}
                       </AppText>
                       {set.rpe ? <AppText variant="caption">RPE {set.rpe}</AppText> : null}
-                    </View>
+                    </PressableScale>
                   ))}
                 </View>
               </Card>
@@ -213,6 +297,57 @@ export default function WorkoutSummaryScreen() {
           </ListGroup>
         </ScrollView>
       )}
+
+      <BottomSheet visible={sheet !== null} onClose={closeSheet} title={sheetTitle}>
+        {sheet?.kind === 'confirmDelete' ? (
+          <View className="gap-3">
+            <AppText variant="body">
+              Remove this workout from your history? Sets and PRs from it will be gone.
+            </AppText>
+            <Button
+              label="Delete workout"
+              variant="danger"
+              loading={deleteSession.isPending}
+              onPress={onDeleteSession}
+            />
+            <Button label="Keep workout" variant="secondary" onPress={closeSheet} />
+          </View>
+        ) : sheet?.kind === 'edit' ? (
+          <View className="gap-5">
+            <View className="flex-row items-center justify-between">
+              <AppText variant="subheading">Weight ({unit})</AppText>
+              <NumberStepper
+                value={draftWeight}
+                onChange={setDraftWeight}
+                step={0.5}
+                min={0}
+                max={units === 'lb' ? 1100 : 500}
+              />
+            </View>
+            <View className="flex-row items-center justify-between">
+              <AppText variant="subheading">Reps</AppText>
+              <NumberStepper value={draftReps} onChange={setDraftReps} min={0} max={100} />
+            </View>
+            <View className="flex-row items-center justify-between">
+              <AppText variant="subheading">RPE</AppText>
+              <NumberStepper
+                value={draftRpe}
+                onChange={setDraftRpe}
+                step={0.5}
+                min={0}
+                max={10}
+                format={(v) => (v === 0 ? '—' : `${v}`)}
+              />
+            </View>
+            <Button
+              label="Save"
+              size="lg"
+              loading={updateSet.isPending}
+              onPress={onSaveSet}
+            />
+          </View>
+        ) : null}
+      </BottomSheet>
     </SafeAreaView>
   );
 }

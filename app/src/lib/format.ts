@@ -1,4 +1,5 @@
 const KG_TO_LB = 2.20462;
+const LB_TO_KG = 1 / KG_TO_LB;
 const MS_PER_DAY = 86_400_000;
 
 /** Local midnight for `date`, as epoch ms. */
@@ -25,6 +26,18 @@ export function formatWeight(kg: number | null | undefined, units: 'kg' | 'lb'):
   if (kg == null) return '—';
   if (units === 'lb') return `${Math.round(kg * KG_TO_LB * 10) / 10}`;
   return `${Math.round(kg * 10) / 10}`;
+}
+
+/** Convert a display value in the user's units back to kilograms for the API. */
+export function toKg(value: number, units: 'kg' | 'lb'): number {
+  const kg = units === 'lb' ? value * LB_TO_KG : value;
+  return Math.round(kg * 10) / 10;
+}
+
+/** Convert kilograms to a display value in the user's units. */
+export function fromKg(kg: number, units: 'kg' | 'lb'): number {
+  if (units === 'lb') return Math.round(kg * KG_TO_LB * 10) / 10;
+  return Math.round(kg * 10) / 10;
 }
 
 export function weightUnitLabel(units: 'kg' | 'lb'): string {

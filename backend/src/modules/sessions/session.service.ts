@@ -1,7 +1,10 @@
 import type {
+  CommitSessionInput,
   LoggedExercise,
+  LoggedSet,
   LogSetInput,
   StartSessionInput,
+  UpdateSetInput,
   WorkoutSession,
 } from '@gymcrush/shared';
 import { prisma } from '../../db/prisma.js';
@@ -43,6 +46,73 @@ export async function startSession(
   return mapSession(session);
 }
 
+/**
+ * Persist a finished workout in one transaction: session + exercises + sets.
+ * Carries `planDayId` without triggering the startSession prefill path.
+ */
+export async function commitSession(
+  userId: string,
+  input: CommitSessionInput,
+): Promise<WorkoutSession> {
+  const exerciseIds = [...new Set(input.exercises.map((e) => e.exerciseId))];
+  const allowed = await prisma.exercise.findMany({
+    where: { id: { in: exerciseIds }, OR: [{ ownerId: null }, { ownerId: userId }] },
+    select: { id: true },
+  });
+  if (allowed.length !== exerciseIds.length) throw notFound('Exercise not found');
+
+  let planId: string | null = input.planId ?? null;
+  let planDayId: string | null = input.planDayId ?? null;
+  if (planDayId) {
+    const day = await prisma.planDay.findFirst({
+      where: {
+        id: planDayId,
+        plan: { OR: [{ ownerId: userId }, { isTemplate: true }] },
+      },
+      select: { id: true, planId: true },
+    });
+    if (!day) throw notFound('Plan day not found');
+    planDayId = day.id;
+    planId = day.planId;
+  } else if (planId) {
+    const plan = await prisma.workoutPlan.findFirst({
+      where: { id: planId, OR: [{ ownerId: userId }, { isTemplate: true }] },
+      select: { id: true },
+    });
+    if (!plan) throw notFound('Plan not found');
+  }
+
+  const session = await prisma.workoutSession.create({
+    data: {
+      ownerId: userId,
+      name: input.name,
+      planId,
+      planDayId,
+      startedAt: new Date(input.startedAt),
+      finishedAt: new Date(),
+      notes: input.notes ?? null,
+      exercises: {
+        create: input.exercises.map((ex, order) => ({
+          exerciseId: ex.exerciseId,
+          order,
+          sets: {
+            create: ex.sets.map((s) => ({
+              setNumber: s.setNumber,
+              weight: s.weight ?? null,
+              reps: s.reps ?? null,
+              rpe: s.rpe ?? null,
+              isWarmup: s.isWarmup,
+              completed: true,
+            })),
+          },
+        })),
+      },
+    },
+    include: sessionInclude,
+  });
+  return mapSession(session);
+}
+
 interface ListParams {
   limit: number;
 }
@@ -76,7 +146,9 @@ export async function addExercise(
   sessionId: string,
   exerciseId: string,
 ): Promise<LoggedExercise> {
-  const session = await prisma.workoutSession.findFirst({ where: { id: sessionId, ownerId: userId } });
+  const session = await prisma.workoutSession.findFirst({
+    where: { id: sessionId, ownerId: userId },
+  });
   if (!session) throw notFound('Session not found');
 
   const order = await prisma.loggedExercise.count({ where: { sessionId } });
@@ -125,6 +197,43 @@ export async function logSet(userId: string, input: LogSetInput): Promise<Workou
   }
 
   return getSession(userId, logged.sessionId);
+}
+
+/**
+ * Correct weight/reps/RPE on an existing set — including finished sessions.
+ * Returns the set only so clients can patch cache without re-downloading trees.
+ */
+export async function updateSet(
+  userId: string,
+  setId: string,
+  input: UpdateSetInput,
+): Promise<LoggedSet> {
+  const existing = await prisma.loggedSet.findUnique({
+    where: { id: setId },
+    include: { loggedExercise: { include: { session: true } } },
+  });
+  if (!existing || existing.loggedExercise.session.ownerId !== userId) {
+    throw notFound('Set not found');
+  }
+
+  const updated = await prisma.loggedSet.update({
+    where: { id: setId },
+    data: {
+      ...(input.weight !== undefined ? { weight: input.weight } : {}),
+      ...(input.reps !== undefined ? { reps: input.reps } : {}),
+      ...(input.rpe !== undefined ? { rpe: input.rpe } : {}),
+    },
+  });
+
+  return {
+    id: updated.id,
+    setNumber: updated.setNumber,
+    weight: updated.weight,
+    reps: updated.reps,
+    rpe: updated.rpe,
+    isWarmup: updated.isWarmup,
+    completed: updated.completed,
+  };
 }
 
 /** Mark a session finished (sets finishedAt, optional notes). */

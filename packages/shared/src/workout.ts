@@ -148,3 +148,41 @@ export const logSetSchema = z.object({
   completed: z.boolean().default(true),
 });
 export type LogSetInput = z.infer<typeof logSetSchema>;
+
+/** One completed set in a bulk-commit payload (local ids are never sent). */
+const commitSetSchema = z.object({
+  setNumber: z.number().int().min(1),
+  weight: z.number().min(0).nullable().optional(),
+  reps: z.number().int().min(0).nullable().optional(),
+  rpe: z.number().min(1).max(10).nullable().optional(),
+  isWarmup: z.boolean().default(false),
+});
+
+/**
+ * Persist a finished workout in one round-trip: session + exercises + sets.
+ * Used by the app's finish path so gym Wi‑Fi isn't hit once per set.
+ */
+export const commitSessionSchema = z.object({
+  name: z.string().min(1).max(80),
+  planId: z.string().optional(),
+  planDayId: z.string().optional(),
+  startedAt: z.string().datetime(),
+  notes: z.string().max(2000).nullable().optional(),
+  exercises: z
+    .array(
+      z.object({
+        exerciseId: z.string().min(1),
+        sets: z.array(commitSetSchema).min(1),
+      }),
+    )
+    .min(1),
+});
+export type CommitSessionInput = z.infer<typeof commitSessionSchema>;
+
+/** Correct weight/reps/RPE on an already-logged set (including finished sessions). */
+export const updateSetSchema = z.object({
+  weight: z.number().min(0).nullable().optional(),
+  reps: z.number().int().min(0).nullable().optional(),
+  rpe: z.number().min(1).max(10).nullable().optional(),
+});
+export type UpdateSetInput = z.infer<typeof updateSetSchema>;

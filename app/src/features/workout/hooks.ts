@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import type { WorkoutSession } from '@gymcrush/shared';
+import { useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { LoggedSet, UpdateSetInput, WorkoutSession } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 
 /**
@@ -19,7 +19,7 @@ export function clearSessionsCache() {
   sessionsCache = [];
 }
 
-async function fetchSessions(limit = 50): Promise<WorkoutSession[]> {
+async function fetchSessions(limit = 100): Promise<WorkoutSession[]> {
   const { sessions } = await api<{ sessions: WorkoutSession[] }>(`/api/sessions?limit=${limit}`);
   return sessions;
 }
@@ -51,47 +51,67 @@ export function useSession(id: string | undefined) {
 export interface ExerciseHistoryPoint {
   sessionId: string;
   date: string;
+  /** Weight from the e1RM-best working set (for “best set” display). */
   bestWeight: number;
   bestReps: number;
+  /** Heaviest working-set weight in the session (for the weight chart). */
+  maxWeight: number;
   /** Epley estimated 1RM from the best set. */
   e1rm: number;
+  /** Sum of weightKg × reps for working sets (always kg-based). */
   totalVolume: number;
 }
 
-/** Per-exercise training history (derived from the sessions list), newest first. */
-export function useExerciseHistory(exerciseId: string | undefined) {
-  return useQuery({
-    queryKey: ['exercise-history', exerciseId],
-    enabled: !!exerciseId,
-    queryFn: async (): Promise<ExerciseHistoryPoint[]> => {
-      const sessions = await fetchSessions(100);
-      const points: ExerciseHistoryPoint[] = [];
-      for (const session of sessions) {
-        const logged = session.exercises.filter((e) => e.exerciseId === exerciseId);
-        if (logged.length === 0) continue;
-        const sets = logged.flatMap((e) => e.sets).filter((s) => s.completed && !s.isWarmup);
-        if (sets.length === 0) continue;
-
-        const best = sets.reduce((a, b) => ((b.weight ?? 0) > (a.weight ?? 0) ? b : a));
-        const bestWeight = best.weight ?? 0;
-        const bestReps = best.reps ?? 0;
-        points.push({
-          sessionId: session.id,
-          date: session.startedAt,
-          bestWeight,
-          bestReps,
-          e1rm: Math.round(bestWeight * (1 + bestReps / 30) * 10) / 10,
-          totalVolume: sets.reduce((sum, s) => sum + (s.weight ?? 0) * (s.reps ?? 0), 0),
-        });
-      }
-      return points.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    },
-  });
+/** Working-set volume for one set (weight × reps). */
+export function setVolume(weight: number | null, reps: number | null): number {
+  return (weight ?? 0) * (reps ?? 0);
 }
 
 /** Epley estimated 1RM — the app's single definition of "best" for a set. */
 export function e1rmOf(weight: number | null, reps: number | null): number {
   return Math.round((weight ?? 0) * (1 + (reps ?? 0) / 30) * 10) / 10;
+}
+
+function historyFromSessions(
+  sessions: WorkoutSession[],
+  exerciseId: string,
+): ExerciseHistoryPoint[] {
+  const points: ExerciseHistoryPoint[] = [];
+  for (const session of sessions) {
+    const logged = session.exercises.filter((e) => e.exerciseId === exerciseId);
+    if (logged.length === 0) continue;
+    const sets = logged.flatMap((e) => e.sets).filter((s) => s.completed && !s.isWarmup);
+    if (sets.length === 0) continue;
+
+    // Best = max e1RM (same definition as the logger / PR badges).
+    const best = sets.reduce((a, b) => (e1rmOf(b.weight, b.reps) > e1rmOf(a.weight, a.reps) ? b : a));
+    const bestWeight = best.weight ?? 0;
+    const bestReps = best.reps ?? 0;
+    const maxWeight = sets.reduce((max, s) => Math.max(max, s.weight ?? 0), 0);
+    points.push({
+      sessionId: session.id,
+      date: session.startedAt,
+      bestWeight,
+      bestReps,
+      maxWeight,
+      e1rm: e1rmOf(bestWeight, bestReps),
+      totalVolume: sets.reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0),
+    });
+  }
+  return points.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+/**
+ * Per-exercise training history derived from the shared sessions list — no
+ * second network fetch.
+ */
+export function useExerciseHistory(exerciseId: string | undefined) {
+  const { data: sessions, isPending, isError, refetch } = useSessions();
+  const data = useMemo(
+    () => (exerciseId && sessions ? historyFromSessions(sessions, exerciseId) : []),
+    [sessions, exerciseId],
+  );
+  return { data, isPending, isError, refetch };
 }
 
 /**
@@ -132,4 +152,55 @@ export function previousSetsFor(
     }
   }
   return [];
+}
+
+function patchSetInSession(session: WorkoutSession, set: LoggedSet): WorkoutSession {
+  return {
+    ...session,
+    exercises: session.exercises.map((ex) => ({
+      ...ex,
+      sets: ex.sets.map((s) => (s.id === set.id ? set : s)),
+    })),
+  };
+}
+
+/** Correct weight/reps/RPE on a finished (or in-progress) set; patches cache. */
+export function useUpdateSet(sessionId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { setId: string } & UpdateSetInput): Promise<LoggedSet> => {
+      const { setId, ...body } = input;
+      const { set } = await api<{ set: LoggedSet }>(`/api/sessions/sets/${setId}`, {
+        method: 'PATCH',
+        body,
+      });
+      return set;
+    },
+    onSuccess: (set) => {
+      if (sessionId) {
+        queryClient.setQueryData<WorkoutSession | null>(['sessions', sessionId], (prev) =>
+          prev ? patchSetInSession(prev, set) : prev,
+        );
+      }
+      queryClient.setQueryData<WorkoutSession[]>(['sessions'], (prev) =>
+        prev?.map((s) => (s.id === sessionId ? patchSetInSession(s, set) : s)),
+      );
+    },
+  });
+}
+
+export function useDeleteSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api<void>(`/api/sessions/${id}`, { method: 'DELETE' });
+      return id;
+    },
+    onSuccess: (id) => {
+      queryClient.setQueryData<WorkoutSession[]>(['sessions'], (prev) =>
+        prev?.filter((s) => s.id !== id),
+      );
+      queryClient.removeQueries({ queryKey: ['sessions', id] });
+    },
+  });
 }

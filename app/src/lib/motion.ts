@@ -26,8 +26,13 @@ export const springs = {
   press: { damping: 18, stiffness: 300 },
   /** Indicators and small position moves (SegmentedControl thumb). */
   snappy: { damping: 26, stiffness: 260, mass: 0.9 },
-  /** Modal/sheet slide-in. */
+  /** Toast slide-in — kept lightly springy on purpose. */
   sheet: { damping: 22, stiffness: 240 },
+  /**
+   * Bottom-sheet entrance + drag snap-back. Critically damped with overshoot
+   * clamped so the sheet settles without a second bounce.
+   */
+  sheetSettle: { damping: 30, stiffness: 280, mass: 0.9, overshootClamping: true },
   /** Celebration overshoot (PR pop)… */
   pop: { damping: 8, stiffness: 320 },
   /** …and the settle back to rest after it. */

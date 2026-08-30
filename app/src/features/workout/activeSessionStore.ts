@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { LoggedExercise, WorkoutSession } from '@gymcrush/shared';
+import type { WorkoutSession } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 import { mmkvStorage } from '@/lib/mmkvStorage';
 import { queryClient } from '@/lib/queryClient';
@@ -85,11 +85,11 @@ interface ActiveSessionState {
   restoreExercise: (exercise: ActiveExercise, index: number) => void;
   discard: () => void;
   /**
-   * Persist the session to the API: start → replay completed sets → finish.
-   * Returns the server session id, or null on failure (local state is kept so
-   * the user can retry).
+   * Persist the session to the API. Returns the server session id on success,
+   * `'empty'` when nothing was completed (caller should discard), or `null` on
+   * failure (local state is kept so the user can retry).
    */
-  finish: () => Promise<string | null>;
+  finish: () => Promise<string | 'empty' | null>;
 }
 
 /**
@@ -371,54 +371,47 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         set({ saving: true, restTimer: null });
 
         try {
-          // 1. Start the session server-side. Passing planDayId would prefill
-          //    exercises server-side, so we start empty and add our own exercises
-          //    to keep the local order/content authoritative.
-          const { session: started } = await api<{ session: WorkoutSession }>('/api/sessions', {
-            method: 'POST',
-            body: {
-              name: session.name,
-              ...(session.planId ? { planId: session.planId } : {}),
-              startedAt: new Date(session.startedAt).toISOString(),
-            },
-          });
-
-          // 2. Recreate each exercise that has at least one completed set, then
-          //    replay those sets.
-          for (const exercise of session.exercises) {
-            const completedSets = exercise.sets.filter((s) => s.completed);
-            if (completedSets.length === 0) continue;
-
-            const { loggedExercise } = await api<{ loggedExercise: LoggedExercise }>(
-              `/api/sessions/${started.id}/exercises`,
-              { method: 'POST', body: { exerciseId: exercise.exerciseId } },
-            );
-
-            let setNumber = 1;
-            for (const s of completedSets) {
-              await api<{ session: WorkoutSession }>('/api/sessions/sets', {
-                method: 'POST',
-                body: {
-                  loggedExerciseId: loggedExercise.id,
-                  setNumber: setNumber++,
+          // One round-trip: nest exercises + sets and mark finished. Carries
+          // planDayId without the startSession prefill path (which would
+          // duplicate the exercise tree we already have locally).
+          const exercises = session.exercises
+            .map((exercise) => {
+              const completedSets = exercise.sets.filter((s) => s.completed);
+              if (completedSets.length === 0) return null;
+              return {
+                exerciseId: exercise.exerciseId,
+                sets: completedSets.map((s, i) => ({
+                  setNumber: i + 1,
                   weight: s.weight,
                   reps: s.reps,
                   rpe: s.rpe,
                   isWarmup: s.isWarmup,
-                  completed: true,
-                },
-              });
-            }
+                })),
+              };
+            })
+            .filter((e): e is NonNullable<typeof e> => e !== null);
+
+          if (exercises.length === 0) {
+            // Nothing completed — caller discards instead of posting an empty session.
+            set({ saving: false });
+            return 'empty';
           }
 
-          // 3. Finish.
-          await api<{ session: WorkoutSession }>(`/api/sessions/${started.id}/finish`, {
-            method: 'PATCH',
-            body: {},
-          });
+          const { session: committed } = await api<{ session: WorkoutSession }>(
+            '/api/sessions/commit',
+            {
+              method: 'POST',
+              body: {
+                name: session.name,
+                ...(session.planId ? { planId: session.planId } : {}),
+                ...(session.planDayId ? { planDayId: session.planDayId } : {}),
+                startedAt: new Date(session.startedAt).toISOString(),
+                exercises,
+              },
+            },
+          );
 
           queryClient.invalidateQueries({ queryKey: ['sessions'] });
-          queryClient.invalidateQueries({ queryKey: ['exercise-history'] });
           // The workout is on the server now, so drop the saved copy before
           // handing off: a kill during the navigation below would otherwise
           // restore it and let the user submit the whole session a second time.
@@ -427,7 +420,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           // doesn't fire a competing navigation; the caller navigates to the
           // summary and then calls `discard()`.
           set({ saving: false });
-          return started.id;
+          return committed.id;
         } catch {
           // Keep the local session so the user can retry.
           set({ saving: false });

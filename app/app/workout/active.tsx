@@ -158,12 +158,16 @@ export default function ActiveWorkoutScreen() {
 
   const doFinish = async () => {
     setFinishError(false);
-    const id = await finish();
-    if (id) {
+    const result = await finish();
+    if (result === 'empty') {
+      discard();
+      return;
+    }
+    if (result) {
       haptics.success();
       // Navigate to the summary first (unmounts this screen so the discard
       // effect can't fire), then clear the persisted active session.
-      router.replace({ pathname: '/workout/[id]', params: { id } });
+      router.replace({ pathname: '/workout/[id]', params: { id: result } });
       discard();
     } else {
       setFinishError(true);

@@ -15,11 +15,14 @@ import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { haptics } from '@/lib/haptics';
 import { BRAND_FG, useThemeColors } from '@/lib/theme';
-import { formatDuration, formatRelativeDay } from '@/lib/format';
+import { formatDuration, formatRelativeDay, localDateKey } from '@/lib/format';
 import { usePlans } from '@/features/plans/hooks';
-import { useSessions } from '@/features/workout/hooks';
+import { setVolume, useSessions } from '@/features/workout/hooks';
 import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
 import { useStartSession } from '@/features/workout/useStartSession';
+import { WeekStrip, weekStartMs } from '@/features/workout/components/WeekStrip';
+
+const MS_DAY = 86_400_000;
 
 export default function LogScreen() {
   const router = useRouter();
@@ -28,31 +31,42 @@ export default function LogScreen() {
   const { data: plans, refetch: refetchPlans } = usePlans();
   const activeSession = useActiveSessionStore((s) => s.session);
   const { startPlanDay, startFreestyle } = useStartSession();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [startSheetOpen, setStartSheetOpen] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [dayPicker, setDayPicker] = useState<WorkoutSession[] | null>(null);
 
-  /** Sessions grouped into This week / Last week / Earlier. */
-  const groups = useMemo(() => {
-    const result: { title: string; sessions: WorkoutSession[] }[] = [
-      { title: 'This week', sessions: [] },
-      { title: 'Last week', sessions: [] },
-      { title: 'Earlier', sessions: [] },
-    ];
-    const now = new Date();
-    const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
-    const startOfLastWeek = new Date(startOfWeek.getTime() - 7 * 86_400_000);
+  const weekSessions = useMemo(() => {
+    const start = weekStartMs(Date.now(), weekOffset);
+    const end = start + 7 * MS_DAY;
+    return (sessions ?? []).filter((s) => {
+      const t = new Date(s.startedAt).getTime();
+      return t >= start && t < end;
+    });
+  }, [sessions, weekOffset]);
 
-    for (const session of sessions ?? []) {
-      const started = new Date(session.startedAt);
-      if (started >= startOfWeek) result[0].sessions.push(session);
-      else if (started >= startOfLastWeek) result[1].sessions.push(session);
-      else result[2].sessions.push(session);
+  const listSessions = useMemo(() => {
+    if (!selectedKey) return weekSessions;
+    return weekSessions.filter((s) => localDateKey(new Date(s.startedAt)) === selectedKey);
+  }, [weekSessions, selectedKey]);
+
+  const onSelectDay = (key: string, onDay: WorkoutSession[]) => {
+    haptics.selection();
+    if (onDay.length === 1) {
+      router.push({ pathname: '/workout/[id]', params: { id: onDay[0].id } });
+      return;
     }
-    return result.filter((g) => g.sessions.length > 0);
-  }, [sessions]);
+    if (onDay.length > 1) {
+      setDayPicker(onDay);
+      return;
+    }
+    // Empty day in the current week → offer to start a workout.
+    setSelectedKey(key);
+    if (weekOffset === 0 && !activeSession) setStartSheetOpen(true);
+  };
 
   const onStartFreestyle = () => {
-    setSheetOpen(false);
+    setStartSheetOpen(false);
     startFreestyle();
   };
 
@@ -60,7 +74,7 @@ export default function LogScreen() {
     const plan = plans?.find((p) => p.id === planId);
     const day = plan?.days.find((d) => d.id === dayId);
     if (!plan || !day) return;
-    setSheetOpen(false);
+    setStartSheetOpen(false);
     startPlanDay(plan, day);
   };
 
@@ -97,39 +111,50 @@ export default function LogScreen() {
           label="Start workout"
           size="lg"
           icon={<Play size={16} color={BRAND_FG} fill={BRAND_FG} />}
-          onPress={() => setSheetOpen(true)}
+          onPress={() => setStartSheetOpen(true)}
         />
       )}
+
+      <WeekStrip
+        sessions={sessions ?? []}
+        weekOffset={weekOffset}
+        onWeekOffsetChange={(o) => {
+          setWeekOffset(o);
+          setSelectedKey(null);
+        }}
+        selectedKey={selectedKey}
+        onSelectDay={onSelectDay}
+      />
 
       {isError ? (
-        <ErrorState
-          title="Couldn't load your history"
-          onRetry={() => void refetch()}
-        />
+        <ErrorState title="Couldn't load your history" onRetry={() => void refetch()} />
       ) : isPending ? (
         <SkeletonList rows={3} />
-      ) : groups.length === 0 ? (
+      ) : listSessions.length === 0 ? (
         <EmptyState
           icon={<Dumbbell size={26} color={colors.contentFaint} />}
-          title="No workouts yet"
-          message="Your logged sessions will show up here."
-          actionLabel="Start workout"
-          onAction={() => setSheetOpen(true)}
+          title={selectedKey ? 'No workout this day' : 'No workouts this week'}
+          message={
+            selectedKey
+              ? 'Pick another day or start a session.'
+              : 'Your logged sessions will show up here.'
+          }
+          actionLabel={activeSession ? undefined : 'Start workout'}
+          onAction={activeSession ? undefined : () => setStartSheetOpen(true)}
         />
       ) : (
-        groups.map((group) => (
-          <View key={group.title} className="gap-2">
-            <AppText variant="label">{group.title}</AppText>
-            <View className="gap-3">
-              {group.sessions.map((session) => (
-                <SessionCard key={session.id} session={session} />
-              ))}
-            </View>
-          </View>
-        ))
+        <View className="gap-3">
+          {listSessions.map((session) => (
+            <SessionCard key={session.id} session={session} />
+          ))}
+        </View>
       )}
 
-      <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} title="Start workout">
+      <BottomSheet
+        visible={startSheetOpen}
+        onClose={() => setStartSheetOpen(false)}
+        title="Start workout"
+      >
         <View className="gap-4">
           <PressableScale
             onPress={onStartFreestyle}
@@ -145,28 +170,46 @@ export default function LogScreen() {
             </View>
           </PressableScale>
 
-          {(plans ?? [])
-            .filter((p) => !p.isTemplate)
-            .map((plan) => (
-              <View key={plan.id} className="gap-2">
-                <AppText variant="label">{plan.name}</AppText>
-                <View className="gap-2">
-                  {plan.days.map((day) => (
-                    <ListRow
-                      key={day.id}
-                      title={day.name}
-                      subtitle={`${day.exercises.length} exercises`}
-                      left={
-                        <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
-                          <Dumbbell size={16} color={colors.contentMuted} />
-                        </View>
-                      }
-                      onPress={() => onStartPlanDay(plan.id, day.id)}
-                    />
-                  ))}
-                </View>
+          {(plans ?? []).map((plan) => (
+            <View key={plan.id} className="gap-2">
+              <AppText variant="label">{plan.name}</AppText>
+              <View className="gap-2">
+                {plan.days.map((day) => (
+                  <ListRow
+                    key={day.id}
+                    title={day.name}
+                    subtitle={`${day.exercises.length} exercises`}
+                    left={
+                      <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                        <Dumbbell size={16} color={colors.contentMuted} />
+                      </View>
+                    }
+                    onPress={() => onStartPlanDay(plan.id, day.id)}
+                  />
+                ))}
               </View>
-            ))}
+            </View>
+          ))}
+        </View>
+      </BottomSheet>
+
+      <BottomSheet
+        visible={dayPicker !== null}
+        onClose={() => setDayPicker(null)}
+        title="Workouts that day"
+      >
+        <View className="gap-2">
+          {(dayPicker ?? []).map((session) => (
+            <ListRow
+              key={session.id}
+              title={session.name}
+              subtitle={formatRelativeDay(session.startedAt)}
+              onPress={() => {
+                setDayPicker(null);
+                router.push({ pathname: '/workout/[id]', params: { id: session.id } });
+              }}
+            />
+          ))}
         </View>
       </BottomSheet>
     </ScreenScaffold>
@@ -175,11 +218,10 @@ export default function LogScreen() {
 
 function SessionCard({ session }: { session: WorkoutSession }) {
   const router = useRouter();
-  const totalSets = session.exercises.reduce((sum, e) => sum + e.sets.length, 0);
-  const totalVolume = session.exercises.reduce(
-    (sum, e) => sum + e.sets.reduce((v, s) => v + (s.weight ?? 0) * (s.reps ?? 0), 0),
-    0,
+  const working = session.exercises.flatMap((e) =>
+    e.sets.filter((s) => s.completed && !s.isWarmup),
   );
+  const totalVolume = working.reduce((sum, s) => sum + setVolume(s.weight, s.reps), 0);
 
   return (
     <Card
@@ -196,11 +238,11 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           exercises
         </AppText>
         <AppText variant="caption">
-          <AppText className="font-bold text-[13px] text-content">{totalSets}</AppText> sets
+          <AppText className="font-bold text-[13px] text-content">{working.length}</AppText> sets
         </AppText>
         <AppText variant="caption">
           <AppText className="font-bold text-[13px] text-content">
-            {Math.round(totalVolume / 1000 * 10) / 10}t
+            {Math.round((totalVolume / 1000) * 10) / 10}t
           </AppText>{' '}
           volume
         </AppText>

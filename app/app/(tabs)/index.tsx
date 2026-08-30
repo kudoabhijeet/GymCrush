@@ -16,7 +16,8 @@ import { useCalendarDay } from '@/lib/useCalendarDay';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { usePlans } from '@/features/plans/hooks';
-import { useSessions } from '@/features/workout/hooks';
+import { e1rmOf, setVolume, useSessions } from '@/features/workout/hooks';
+import { weekStartMs } from '@/features/workout/components/WeekStrip';
 import { useDailyLog } from '@/features/nutrition/hooks';
 import { exerciseLookup } from '@/features/exercises/hooks';
 import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
@@ -40,7 +41,7 @@ export default function HomeScreen() {
 
   /** Next day of the user's own (non-template) plan, cycling past the last logged day. */
   const nextWorkout = useMemo(() => {
-    const myPlan = plans?.find((p) => !p.isTemplate);
+    const myPlan = plans?.[0];
     if (!myPlan || myPlan.days.length === 0) return null;
     const lastPlanned = sessions?.find((s) => s.planId === myPlan.id && s.planDayId);
     const lastIndex = lastPlanned
@@ -77,8 +78,8 @@ export default function HomeScreen() {
     for (const session of chronological) {
       for (const logged of session.exercises) {
         for (const s of logged.sets) {
-          if (!s.completed || s.weight == null || s.reps == null) continue;
-          const e1rm = s.weight * (1 + s.reps / 30);
+          if (!s.completed || s.isWarmup || s.weight == null || s.reps == null) continue;
+          const e1rm = e1rmOf(s.weight, s.reps);
           if (e1rm > (best.get(logged.exerciseId) ?? 0)) {
             best.set(logged.exerciseId, e1rm);
             prs.push({
@@ -93,6 +94,31 @@ export default function HomeScreen() {
     }
     return prs.slice(-3).reverse();
   }, [sessions]);
+
+  /** This week's working volume by muscle group (top 4). */
+  const weekMuscleVolume = useMemo(() => {
+    const start = weekStartMs(today, 0);
+    const end = start + 7 * 86_400_000;
+    const byMuscle = new Map<string, number>();
+    for (const session of sessions ?? []) {
+      const t = new Date(session.startedAt).getTime();
+      if (t < start || t >= end) continue;
+      for (const logged of session.exercises) {
+        const muscle = exerciseLookup(logged.exerciseId)?.muscleGroup;
+        if (!muscle) continue;
+        let vol = 0;
+        for (const s of logged.sets) {
+          if (!s.completed || s.isWarmup) continue;
+          vol += setVolume(s.weight, s.reps);
+        }
+        if (vol > 0) byMuscle.set(muscle, (byMuscle.get(muscle) ?? 0) + vol);
+      }
+    }
+    return [...byMuscle.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([muscle, volume]) => ({ muscle, volume }));
+  }, [sessions, today]);
 
   const startNextWorkout = () => {
     if (!nextWorkout) {
@@ -235,6 +261,34 @@ export default function HomeScreen() {
         </View>
       </Card>
       )}
+
+      {/* This week's volume by muscle */}
+      {weekMuscleVolume.length > 0 ? (
+        <Card className="gap-3">
+          <View className="flex-row items-center justify-between">
+            <AppText variant="label">This week&apos;s volume</AppText>
+            <PressableScale onPress={() => router.push('/(tabs)/log')} hitSlop={8}>
+              <ArrowRight size={16} color={colors.contentFaint} />
+            </PressableScale>
+          </View>
+          {weekMuscleVolume.map(({ muscle, volume }) => {
+            const max = weekMuscleVolume[0].volume || 1;
+            return (
+              <View key={muscle} className="gap-1.5">
+                <View className="flex-row items-baseline justify-between">
+                  <AppText variant="subheading" className="capitalize">
+                    {muscle.replace('_', ' ')}
+                  </AppText>
+                  <AppText variant="caption">
+                    {Math.round(volume / 1000 * 10) / 10}t
+                  </AppText>
+                </View>
+                <ProgressBar progress={volume / max} height={6} />
+              </View>
+            );
+          })}
+        </Card>
+      ) : null}
 
       {/* Recent PRs */}
       {recentPRs.length > 0 ? (

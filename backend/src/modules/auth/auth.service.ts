@@ -83,6 +83,10 @@ export async function getMe(userId: string): Promise<PublicUser> {
  * an empty row via JIT provisioning. If the local delete then fails we're left
  * with rows nobody can ever authenticate into — recoverable and harmless. The
  * reverse order fails the other way, leaving live credentials behind.
+ *
+ * Local rows are deleted in FK-safe order: FoodEntry/LoggedExercise reference
+ * custom Food/Exercise with ON DELETE RESTRICT, so cascading User→Food alone
+ * would fail when those customs were logged.
  */
 export async function deleteAccount(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({
@@ -102,8 +106,18 @@ export async function deleteAccount(userId: string): Promise<void> {
     evictIdentity(user.authUserId);
   }
 
-  // Cascades across plans, sessions, logs, profile and targets.
-  await prisma.user.delete({ where: { id: user.id } });
+  await prisma.$transaction(async (tx) => {
+    // Food logs (and their entries) before custom foods they may reference.
+    await tx.foodLog.deleteMany({ where: { ownerId: user.id } });
+    await tx.food.deleteMany({ where: { ownerId: user.id } });
+    // Sessions (and logged exercises/sets) before custom exercises they reference.
+    await tx.workoutSession.deleteMany({ where: { ownerId: user.id } });
+    // Plans (and plan exercises) before custom exercises they reference.
+    await tx.workoutPlan.deleteMany({ where: { ownerId: user.id } });
+    await tx.exercise.deleteMany({ where: { ownerId: user.id } });
+    // Cascades remaining profile/targets/weight logs/refresh tokens.
+    await tx.user.delete({ where: { id: user.id } });
+  });
 }
 
 export async function refresh(refreshToken: string) {

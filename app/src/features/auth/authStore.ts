@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { AuthResponse, BodyProfile, MacroTarget, PublicUser } from '@gymcrush/shared';
 import { api, ApiError, resetAuthState } from '@/lib/api';
 import { clearMmkv } from '@/lib/mmkvStorage';
+import { cancelDailyReminder } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
 import { tokenStore } from '@/lib/tokenStore';
 import { clearExerciseCatalog } from '@/features/exercises/hooks';
@@ -142,6 +143,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   deleteAccount: async () => {
     await authApi.deleteAccount();
+    // Rest timer is cancelled by discard() inside clearLocalUserData. The daily
+    // reminder is a device pref that survives sign-out on purpose — cancel it
+    // here so "time to train" doesn't fire after the account is gone.
+    cancelDailyReminder();
     await clearLocalUserData();
     set({ user: null, status: 'unauthenticated' });
   },

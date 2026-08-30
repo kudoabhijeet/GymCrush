@@ -33,11 +33,8 @@ export default function PlansScreen() {
   const templates = useTemplates();
 
   const active = tab === 'mine' ? mine : templates;
-  // /api/plans also returns templates (read access is intentionally broad), so
-  // the "mine" tab drops them here.
   const visible = useMemo(
-    () =>
-      tab === 'mine' ? (mine.data ?? []).filter((p) => !p.isTemplate) : (templates.data ?? []),
+    () => (tab === 'mine' ? (mine.data ?? []) : (templates.data ?? [])),
     [tab, mine.data, templates.data],
   );
 

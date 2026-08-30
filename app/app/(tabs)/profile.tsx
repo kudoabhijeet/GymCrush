@@ -27,6 +27,7 @@ import { useThemeColors } from '@/lib/theme';
 import { toast } from '@/lib/toastStore';
 import { formatWeight } from '@/lib/format';
 import { useAuthStore } from '@/features/auth/authStore';
+import { useOnboardingStore } from '@/features/profile/onboardingStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 
 export default function ProfileScreen() {
@@ -35,10 +36,16 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
-  const { bodyProfile, macroTarget, units, setUnits, theme, setTheme, resetOnboarding } =
-    useProfileStore();
+  const { bodyProfile, macroTarget, units, setUnits, theme, setTheme } = useProfileStore();
   const [deleting, setDeleting] = useState(false);
   const { confirm, element: confirmElement } = useConfirmSheet();
+
+  const openTargetCalculator = () => {
+    const { hydrateFromProfile, reset } = useOnboardingStore.getState();
+    if (bodyProfile) hydrateFromProfile(bodyProfile);
+    else reset();
+    router.push('/(onboarding)/goal');
+  };
 
   const onLogout = async () => {
     const ok = await confirm({
@@ -125,7 +132,7 @@ export default function ProfileScreen() {
                 <Target size={18} color={colors.brandText} />
               </View>
             }
-            onPress={resetOnboarding}
+            onPress={openTargetCalculator}
           />
         </ListGroup>
       </View>
@@ -182,7 +189,7 @@ export default function ProfileScreen() {
               <UserRound size={18} color={colors.contentMuted} />
             </View>
           }
-          onPress={resetOnboarding}
+          onPress={openTargetCalculator}
         />
         <ListSeparator />
         <ListRow

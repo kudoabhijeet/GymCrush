@@ -12,6 +12,7 @@ import type {
 } from '@gymcrush/shared';
 import { api } from '@/lib/api';
 import { CATALOG_GC_MS, CATALOG_STALE_MS } from '@/lib/queryClient';
+import { useProfileStore } from '@/features/profile/profileStore';
 
 export interface ProfileWithTarget {
   profile: BodyProfile;
@@ -117,6 +118,28 @@ export function useWeightHistory() {
   });
 }
 
+/** Patch profile store weight when the latest weigh-in changes (no refetch). */
+function syncProfileWeight(weightKg: number) {
+  const { bodyProfile, macroTarget, setBodyProfile } = useProfileStore.getState();
+  if (!bodyProfile || !macroTarget) return;
+  if (bodyProfile.weightKg === weightKg) return;
+  setBodyProfile({ ...bodyProfile, weightKg }, macroTarget);
+}
+
+/** Re-load profile + targets from the server (e.g. after clearing the weight log). */
+async function refreshProfileFromServer() {
+  const hydrateProfile = useProfileStore.getState().hydrateFromServer;
+  try {
+    const [{ profile }, { target }] = await Promise.all([
+      api<{ profile: BodyProfile }>('/api/nutrition/profile'),
+      api<{ target: MacroTarget }>('/api/nutrition/targets'),
+    ]);
+    hydrateProfile(profile, target);
+  } catch {
+    // Transient failure — leave the store as-is.
+  }
+}
+
 export function useLogWeight() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -127,6 +150,62 @@ export function useLogWeight() {
       });
       return entry;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['weight-history'] }),
+    onSuccess: (entry) => {
+      queryClient.setQueryData<WeightEntry[]>(['weight-history'], (prev) =>
+        prev ? [...prev, entry] : [entry],
+      );
+      syncProfileWeight(entry.weightKg);
+    },
+  });
+}
+
+export function useUpdateWeight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; weightKg: number }): Promise<WeightEntry> => {
+      const { entry } = await api<{ entry: WeightEntry }>(`/api/nutrition/weight/${input.id}`, {
+        method: 'PATCH',
+        body: { weightKg: input.weightKg },
+      });
+      return entry;
+    },
+    onSuccess: (entry) => {
+      queryClient.setQueryData<WeightEntry[]>(['weight-history'], (prev) => {
+        if (!prev) return [entry];
+        const next = prev.map((e) => (e.id === entry.id ? entry : e));
+        const latest = next[next.length - 1];
+        if (latest?.id === entry.id) syncProfileWeight(entry.weightKg);
+        return next;
+      });
+    },
+  });
+}
+
+export function useDeleteWeight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<string> => {
+      await api<void>(`/api/nutrition/weight/${id}`, { method: 'DELETE' });
+      return id;
+    },
+    onSuccess: (id) => {
+      let historyEmpty = false;
+      queryClient.setQueryData<WeightEntry[]>(['weight-history'], (prev) => {
+        if (!prev) return prev;
+        const wasLatest = prev[prev.length - 1]?.id === id;
+        const next = prev.filter((e) => e.id !== id);
+        if (wasLatest) {
+          if (next.length > 0) {
+            syncProfileWeight(next[next.length - 1].weightKg);
+          } else {
+            historyEmpty = true;
+          }
+        }
+        return next;
+      });
+      if (historyEmpty) {
+        void refreshProfileFromServer();
+      }
+    },
   });
 }

@@ -206,8 +206,7 @@ model WorkoutSession {
 
   exercises LoggedExercise[]
 
-  @@index([ownerId])
-  @@index([startedAt])
+  @@index([ownerId, startedAt])
 }
 
 model LoggedExercise {

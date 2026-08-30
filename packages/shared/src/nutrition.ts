@@ -112,3 +112,9 @@ export const weightEntrySchema = z.object({
   loggedAt: z.string(),
 });
 export type WeightEntry = z.infer<typeof weightEntrySchema>;
+
+/** Create or update a bodyweight log entry. */
+export const logWeightSchema = z.object({
+  weightKg: z.number().min(30).max(300),
+});
+export type LogWeightInput = z.infer<typeof logWeightSchema>;
