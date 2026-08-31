@@ -14,7 +14,7 @@ interface ScreenHeaderProps {
   noBack?: boolean;
 }
 
-/** Header for stack screens: back chevron, centered-weight title, actions. */
+/** Header for stack screens: back chevron, left-aligned title, actions. */
 export function ScreenHeader({ title, actions, noBack }: ScreenHeaderProps) {
   const router = useRouter();
   const colors = useThemeColors();
@@ -24,7 +24,8 @@ export function ScreenHeader({ title, actions, noBack }: ScreenHeaderProps) {
       {!noBack ? (
         <IconButton
           icon={<ChevronLeft size={22} color={colors.content} />}
-          onPress={() => router.back()}
+          // Deep links land here with an empty stack — back() would throw.
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
           accessibilityLabel="Go back"
         />
       ) : null}

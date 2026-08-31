@@ -13,4 +13,6 @@ export const authApi = {
 
   /** The current user (uses the stored access token, refreshing if needed). */
   me: () => api<{ user: PublicUser }>('/api/auth/me'),
+
+  deleteAccount: () => api<void>('/api/auth/account', { method: 'DELETE' }),
 };

@@ -44,7 +44,7 @@ export default function GoalScreen() {
     <View className="flex-1 justify-between px-6 pb-6">
       <View className="gap-6">
         <View className="gap-2 pt-4">
-          <AppText variant="title">What's your goal?</AppText>
+          <AppText variant="title">What&apos;s your goal?</AppText>
           <AppText variant="caption">This drives your calorie and macro targets.</AppText>
         </View>
 

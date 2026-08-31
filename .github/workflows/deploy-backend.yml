@@ -1,0 +1,83 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: deploy-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @gymcrush/backend prisma generate
+
+      - name: Build shared package
+        run: pnpm build:shared
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build backend
+        run: pnpm --filter @gymcrush/backend build
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING }}
+        run: |
+          SERVICE="${{ github.ref == 'refs/heads/main' && secrets.RAILWAY_SERVICE_ID_PRODUCTION || secrets.RAILWAY_SERVICE_ID_STAGING }}"
+          railway up --service "$SERVICE" --detach
+
+      - name: Smoke test /health
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            URL="${{ secrets.RAILWAY_PRODUCTION_URL }}"
+          else
+            URL="${{ secrets.RAILWAY_STAGING_URL }}"
+          fi
+          if [ -z "$URL" ]; then
+            echo "Skipping smoke test — set RAILWAY_PRODUCTION_URL / RAILWAY_STAGING_URL secret"
+            exit 0
+          fi
+          echo "Checking $URL/health"
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "$URL/health"; then
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed after retries"
+          exit 1

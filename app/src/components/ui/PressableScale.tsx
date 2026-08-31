@@ -6,6 +6,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { durations, pressScale, springs } from '@/lib/motion';
 
 // NativeWind doesn't auto-register Reanimated-wrapped components for className->style
 // interop, so without registering it the padding/sizing classes never become real
@@ -14,7 +15,7 @@ import Animated, {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface PressableScaleProps extends PressableProps {
-  /** Scale when pressed. Default 0.97 — subtle, production feel. */
+  /** Scale when pressed — pass a named depth from `pressScale`. Default `pressScale.button`. */
   scaleTo?: number;
   className?: string;
 }
@@ -31,7 +32,7 @@ interface PressableScaleInnerProps extends PressableScaleProps {
 // className to this dedicated `cssStyle` prop and merging it into the style
 // array ourselves avoids the clobber.
 function PressableScaleInner({
-  scaleTo = 0.97,
+  scaleTo = pressScale.button,
   onPressIn,
   onPressOut,
   style,
@@ -41,18 +42,18 @@ function PressableScaleInner({
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.get() }],
   }));
 
   return (
     <AnimatedPressable
       style={[cssStyle, animatedStyle, style as object]}
       onPressIn={(e) => {
-        scale.value = withTiming(scaleTo, { duration: 80 });
+        scale.set(withTiming(scaleTo, { duration: durations.press }));
         onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        scale.value = withSpring(1, { damping: 18, stiffness: 300 });
+        scale.set(withSpring(1, springs.press));
         onPressOut?.(e);
       }}
       {...rest}

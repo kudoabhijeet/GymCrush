@@ -8,13 +8,13 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://gymcrushbackend-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://gymcrushbackend-staging.up.railway.app"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://gymcrushbackend-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://gymcrushbackend-staging.up.railway.app"
       }
     },
     "production": {

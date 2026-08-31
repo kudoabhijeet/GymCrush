@@ -21,6 +21,15 @@ export function exerciseLookup(id: string): Exercise | undefined {
 }
 
 /**
+ * Must be called on sign-out: the catalog holds the caller's *custom* exercises
+ * alongside the global ones, so leaving it warm would surface one user's custom
+ * exercise names to the next account signed in on this device.
+ */
+export function clearExerciseCatalog() {
+  catalog.clear();
+}
+
+/**
  * Prefetch the full exercise catalog once (global + custom) and keep the
  * synchronous lookup map warm. Call once high in the tree (root layout);
  * `enabled` should track authentication since the endpoint requires a token.

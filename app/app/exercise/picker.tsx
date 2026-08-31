@@ -7,9 +7,10 @@ import type { MuscleGroup } from '@gymcrush/shared';
 import { AppText } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Chip } from '@/components/ui/Chip';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListRow } from '@/components/ui/ListRow';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import { TextField } from '@/components/ui/TextField';
 import { useThemeColors } from '@/lib/theme';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
@@ -36,7 +37,12 @@ export default function ExercisePickerScreen() {
   const [search, setSearch] = useState('');
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>();
   // The input stays instant; only the query key waits for a pause in typing.
-  const { data: exercises, isLoading } = useExercises(useDebouncedValue(search), muscleGroup);
+  const {
+    data: exercises,
+    isPending,
+    isError,
+    refetch,
+  } = useExercises(useDebouncedValue(search), muscleGroup);
 
   return (
     <SafeAreaView className="flex-1 bg-surface" edges={['top', 'bottom']}>
@@ -75,11 +81,13 @@ export default function ExercisePickerScreen() {
         />
       </View>
 
-      {isLoading ? (
-        <View className="gap-2 px-5">
-          <Skeleton className="h-14 rounded-xl" />
-          <Skeleton className="h-14 rounded-xl" />
-          <Skeleton className="h-14 rounded-xl" />
+      {isError ? (
+        <View className="px-5">
+          <ErrorState title="Couldn't load exercises" onRetry={() => void refetch()} />
+        </View>
+      ) : isPending ? (
+        <View className="px-5">
+          <SkeletonList rows={3} rowClassName="h-14 rounded-xl" />
         </View>
       ) : (
         <FlatList

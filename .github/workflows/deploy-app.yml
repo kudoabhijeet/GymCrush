@@ -1,0 +1,79 @@
+name: Deploy App
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-app-main
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: EAS production build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm build:shared
+
+      - name: EAS build (production)
+        working-directory: app
+        run: eas build --platform all --profile production --non-interactive
+
+  submit:
+    name: EAS production submit
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ vars.EAS_SUBMIT_ENABLED == 'true' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: EAS submit (production)
+        working-directory: app
+        run: eas submit --platform all --profile production --non-interactive --latest

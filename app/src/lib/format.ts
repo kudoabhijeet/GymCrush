@@ -1,4 +1,17 @@
 const KG_TO_LB = 2.20462;
+const MS_PER_DAY = 86_400_000;
+
+/** Local midnight for `date`, as epoch ms. */
+export function startOfLocalDay(date: Date | number = new Date()): number {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Ms from `now` until the next local midnight. */
+export function msUntilNextLocalMidnight(now = Date.now()): number {
+  return startOfLocalDay(now) + MS_PER_DAY - now;
+}
 
 /** Local yyyy-mm-dd key for a date (used as the daily food-log key). */
 export function localDateKey(d = new Date()): string {

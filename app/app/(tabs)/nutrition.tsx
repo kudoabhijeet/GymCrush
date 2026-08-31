@@ -5,17 +5,25 @@ import { ChevronLeft, ChevronRight, Plus, Scale, Trash2, UtensilsCrossed } from 
 import { AppText } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import type { DailyLogEntry, Meal } from '@gymcrush/shared';
 import { useThemeColors } from '@/lib/theme';
+import { toast } from '@/lib/toastStore';
 import { formatRelativeDay, localDateKey } from '@/lib/format';
+import { useCalendarDay } from '@/lib/useCalendarDay';
 import { useProfileStore } from '@/features/profile/profileStore';
-import { useDailyLog, useRemoveFoodEntry, useWeightHistory } from '@/features/nutrition/hooks';
+import {
+  useAddFoodEntry,
+  useDailyLog,
+  useRemoveFoodEntry,
+  useWeightHistory,
+} from '@/features/nutrition/hooks';
 
 const MEALS: { value: Meal; label: string }[] = [
   { value: 'breakfast', label: 'Breakfast' },
@@ -29,16 +37,14 @@ export default function NutritionScreen() {
   const colors = useThemeColors();
   const macroTarget = useProfileStore((s) => s.macroTarget);
   const [dayOffset, setDayOffset] = useState(0);
-
-  const date = useMemo(() => {
-    const d = new Date(Date.now() + dayOffset * 86_400_000);
-    return d;
-  }, [dayOffset]);
+  const today = useCalendarDay();
+  const date = new Date(today + dayOffset * 86_400_000);
   const dateKey = localDateKey(date);
 
-  const { data: log, isLoading } = useDailyLog(dateKey);
-  const { data: weights } = useWeightHistory();
+  const { data: log, isPending, isError, refetch } = useDailyLog(dateKey);
+  const { data: weights, refetch: refetchWeights } = useWeightHistory();
   const removeEntry = useRemoveFoodEntry();
+  const addEntry = useAddFoodEntry();
 
   const totals = log?.totals ?? { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
   const latestWeight = weights?.[weights.length - 1];
@@ -62,6 +68,7 @@ export default function NutritionScreen() {
   return (
     <ScreenScaffold
       title="Nutrition"
+      onRefresh={() => Promise.all([refetch(), refetchWeights()])}
       headerRight={
         <View className="flex-row items-center gap-1">
           <IconButton
@@ -122,11 +129,22 @@ export default function NutritionScreen() {
       </PressableScale>
 
       {/* Meals */}
-      {isLoading ? (
-        <View className="gap-3">
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-        </View>
+      {isError ? (
+        <ErrorState title="Couldn't load this day" onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <SkeletonList rows={2} rowClassName="h-24 rounded-2xl" />
+      ) : (log?.entries.length ?? 0) === 0 ? (
+        // One empty state for an empty day — not four dashed meal boxes plus
+        // a fifth global one stacked underneath.
+        <EmptyState
+          icon={<UtensilsCrossed size={26} color={colors.contentFaint} />}
+          title="Nothing logged this day"
+          message="Add foods to any meal to track against your targets."
+          actionLabel="Log food"
+          onAction={() =>
+            router.push({ pathname: '/food/search', params: { date: dateKey, meal: 'breakfast' } })
+          }
+        />
       ) : (
         MEALS.map((meal) => {
           const entries = entriesByMeal.get(meal.value) ?? [];
@@ -173,9 +191,44 @@ export default function NutritionScreen() {
                           {entry.macros.calories}
                         </AppText>
                         <PressableScale
-                          onPress={() => removeEntry.mutate({ date: dateKey, entryId: entry.id })}
+                          onPress={() =>
+                            removeEntry.mutate(
+                              { date: dateKey, entryId: entry.id },
+                              {
+                                onSuccess: () =>
+                                  toast.undo(`Removed ${entry.food.name}`, () =>
+                                    addEntry.mutate(
+                                      {
+                                        date: dateKey,
+                                        foodId: entry.food.id,
+                                        servings: entry.servings,
+                                        meal: entry.meal,
+                                      },
+                                      {
+                                        // Silence here would read as "restored"
+                                        // while the entry stayed deleted.
+                                        onError: () =>
+                                          toast.show({
+                                            message: `Couldn't restore ${entry.food.name}.`,
+                                            tone: 'warning',
+                                          }),
+                                      },
+                                    ),
+                                  ),
+                                onError: () =>
+                                  toast.show({
+                                    message: `Couldn't remove ${entry.food.name}.`,
+                                    tone: 'warning',
+                                  }),
+                              },
+                            )
+                          }
+                          // No confirm mid-flow — undo above covers mistakes;
+                          // the pending gate kills double-tap double-deletes.
+                          disabled={removeEntry.isPending}
                           hitSlop={8}
-                          accessibilityLabel="Remove entry"
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove ${entry.food.name}`}
                         >
                           <Trash2 size={15} color={colors.contentFaint} />
                         </PressableScale>
@@ -188,17 +241,6 @@ export default function NutritionScreen() {
         })
       )}
 
-      {!isLoading && (log?.entries.length ?? 0) === 0 ? (
-        <EmptyState
-          icon={<UtensilsCrossed size={26} color={colors.contentFaint} />}
-          title="Nothing logged this day"
-          message="Add foods to any meal to track against your targets."
-          actionLabel="Log food"
-          onAction={() =>
-            router.push({ pathname: '/food/search', params: { date: dateKey, meal: 'breakfast' } })
-          }
-        />
-      ) : null}
     </ScreenScaffold>
   );
 }

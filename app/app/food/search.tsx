@@ -3,18 +3,18 @@ import { FlatList, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Search, X } from 'lucide-react-native';
-import type { Food } from '@gymcrush/shared';
+import type { Food, Meal } from '@gymcrush/shared';
 import { AppText } from '@/components/ui/Text';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListRow } from '@/components/ui/ListRow';
 import { NumberStepper } from '@/components/ui/NumberStepper';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import { TextField } from '@/components/ui/TextField';
 import { useThemeColors } from '@/lib/theme';
-import type { Meal } from '@gymcrush/shared';
 import { localDateKey } from '@/lib/format';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useAddFoodEntry, useFoods } from '@/features/nutrition/hooks';
@@ -37,7 +37,7 @@ export default function FoodSearchScreen() {
   const [servings, setServings] = useState(1);
   const [meal, setMeal] = useState<Meal>(params.meal ?? 'breakfast');
   // The input stays instant; only the query key waits for a pause in typing.
-  const { data: foods, isLoading } = useFoods(useDebouncedValue(search));
+  const { data: foods, isPending, isError, refetch } = useFoods(useDebouncedValue(search));
   const addEntry = useAddFoodEntry();
 
   const onAdd = () => {
@@ -81,11 +81,13 @@ export default function FoodSearchScreen() {
         />
       </View>
 
-      {isLoading ? (
-        <View className="gap-2 px-5">
-          <Skeleton className="h-14 rounded-xl" />
-          <Skeleton className="h-14 rounded-xl" />
-          <Skeleton className="h-14 rounded-xl" />
+      {isError ? (
+        <View className="px-5">
+          <ErrorState title="Couldn't search foods" onRetry={() => void refetch()} />
+        </View>
+      ) : isPending ? (
+        <View className="px-5">
+          <SkeletonList rows={3} rowClassName="h-14 rounded-xl" />
         </View>
       ) : (
         <FlatList

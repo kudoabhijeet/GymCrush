@@ -1,18 +1,27 @@
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { calcMacroTarget, type UpsertBodyProfileInput } from '@gymcrush/shared';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Info } from 'lucide-react-native';
+import {
+  calcMacroTarget,
+  wasMacroTargetClamped,
+  type UpsertBodyProfileInput,
+} from '@gymcrush/shared';
 import { AppText } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ProgressRing } from '@/components/ui/ProgressRing';
+import { durations } from '@/lib/motion';
+import { useThemeColors } from '@/lib/theme';
 import { useOnboardingStore } from '@/features/profile/onboardingStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 import { useUpsertBodyProfile } from '@/features/nutrition/hooks';
 
 export default function ResultsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const draft = useOnboardingStore();
   const setBodyProfile = useProfileStore((s) => s.setBodyProfile);
   const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
@@ -33,6 +42,7 @@ export default function ResultsScreen() {
 
   // Local preview of the targets; the server returns the authoritative values.
   const target = useMemo(() => calcMacroTarget(profile), [profile]);
+  const clamped = useMemo(() => wasMacroTargetClamped(profile), [profile]);
   const macroKcal = {
     protein: target.proteinG * 4,
     carbs: target.carbsG * 4,
@@ -93,6 +103,16 @@ export default function ResultsScreen() {
             delayIndex={2}
           />
         </Card>
+
+        {clamped ? (
+          <View className="flex-row items-start gap-2.5 rounded-xl bg-warning/10 p-3">
+            <Info size={15} color={colors.warning} style={{ marginTop: 1 }} />
+            <AppText variant="caption" className="flex-1 text-warning">
+              Protein and fat were scaled down to fit your calorie target. At this bodyweight and
+              deficit the usual per-kg amounts wouldn&apos;t leave room for carbs.
+            </AppText>
+          </View>
+        ) : null}
       </View>
 
       <View className="gap-2">
@@ -101,12 +121,7 @@ export default function ResultsScreen() {
             {error}
           </AppText>
         ) : null}
-        <Button
-          label="Let's go"
-          size="lg"
-          loading={upsertProfile.isPending}
-          onPress={onFinish}
-        />
+        <Button label="Let's go" size="lg" loading={upsertProfile.isPending} onPress={onFinish} />
       </View>
     </View>
   );
@@ -117,15 +132,20 @@ function MacroRow({
   grams,
   share,
   fill,
+  delayIndex = 0,
 }: {
   label: string;
   grams: number;
   share: number;
   fill: string;
+  /** Staggers the row's entrance — first row lands, the next two follow. */
   delayIndex?: number;
 }) {
   return (
-    <View className="gap-2">
+    <Animated.View
+      entering={FadeInDown.delay(delayIndex * 60).duration(durations.enter)}
+      className="gap-2"
+    >
       <View className="flex-row items-baseline justify-between">
         <AppText variant="subheading">{label}</AppText>
         <AppText variant="caption">
@@ -135,6 +155,6 @@ function MacroRow({
         </AppText>
       </View>
       <ProgressBar progress={share} fillClassName={fill} height={6} />
-    </View>
+    </Animated.View>
   );
 }

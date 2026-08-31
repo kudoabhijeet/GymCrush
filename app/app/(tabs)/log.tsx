@@ -8,23 +8,26 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { ListRow } from '@/components/ui/ListRow';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { SkeletonList } from '@/components/ui/Skeleton';
+import { haptics } from '@/lib/haptics';
 import { BRAND_FG, useThemeColors } from '@/lib/theme';
 import { formatDuration, formatRelativeDay } from '@/lib/format';
 import { usePlans } from '@/features/plans/hooks';
 import { useSessions } from '@/features/workout/hooks';
 import { useActiveSessionStore } from '@/features/workout/activeSessionStore';
+import { useStartSession } from '@/features/workout/useStartSession';
 
 export default function LogScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const { data: sessions, isLoading } = useSessions();
-  const { data: plans } = usePlans();
+  const { data: sessions, isPending, isError, refetch } = useSessions();
+  const { data: plans, refetch: refetchPlans } = usePlans();
   const activeSession = useActiveSessionStore((s) => s.session);
-  const startSession = useActiveSessionStore((s) => s.start);
+  const { startPlanDay, startFreestyle } = useStartSession();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   /** Sessions grouped into This week / Last week / Earlier. */
@@ -48,35 +51,32 @@ export default function LogScreen() {
     return result.filter((g) => g.sessions.length > 0);
   }, [sessions]);
 
-  const startFreestyle = () => {
+  const onStartFreestyle = () => {
     setSheetOpen(false);
-    startSession({ name: 'Freestyle workout' });
-    router.push('/workout/active');
+    startFreestyle();
   };
 
-  const startPlanDay = (planId: string, dayId: string) => {
+  const onStartPlanDay = (planId: string, dayId: string) => {
     const plan = plans?.find((p) => p.id === planId);
     const day = plan?.days.find((d) => d.id === dayId);
     if (!plan || !day) return;
     setSheetOpen(false);
-    startSession({
-      name: day.name,
-      planId: plan.id,
-      planDayId: day.id,
-      prescriptions: day.exercises.map((e) => ({
-        exerciseId: e.exerciseId,
-        targetSets: e.targetSets,
-        restSeconds: e.restSeconds,
-      })),
-    });
-    router.push('/workout/active');
+    startPlanDay(plan, day);
   };
 
   return (
-    <ScreenScaffold title="Log" subtitle="Every session, every set.">
+    <ScreenScaffold
+      title="Log"
+      subtitle="Every session, every set."
+      onRefresh={() => Promise.all([refetch(), refetchPlans()])}
+    >
       {activeSession ? (
         <PressableScale
-          onPress={() => router.push('/workout/active')}
+          onPress={() => {
+            haptics.tap();
+            router.push('/workout/active');
+          }}
+          accessibilityRole="button"
           className="flex-row items-center gap-3 rounded-2xl bg-brand p-4"
         >
           <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-fg">
@@ -101,17 +101,20 @@ export default function LogScreen() {
         />
       )}
 
-      {isLoading ? (
-        <View className="gap-3">
-          <Skeleton className="h-20 rounded-2xl" />
-          <Skeleton className="h-20 rounded-2xl" />
-          <Skeleton className="h-20 rounded-2xl" />
-        </View>
+      {isError ? (
+        <ErrorState
+          title="Couldn't load your history"
+          onRetry={() => void refetch()}
+        />
+      ) : isPending ? (
+        <SkeletonList rows={3} />
       ) : groups.length === 0 ? (
         <EmptyState
           icon={<Dumbbell size={26} color={colors.contentFaint} />}
           title="No workouts yet"
           message="Your logged sessions will show up here."
+          actionLabel="Start workout"
+          onAction={() => setSheetOpen(true)}
         />
       ) : (
         groups.map((group) => (
@@ -129,7 +132,8 @@ export default function LogScreen() {
       <BottomSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} title="Start workout">
         <View className="gap-4">
           <PressableScale
-            onPress={startFreestyle}
+            onPress={onStartFreestyle}
+            accessibilityRole="button"
             className="flex-row items-center gap-3 rounded-2xl bg-brand p-4"
           >
             <Zap size={20} color={BRAND_FG} />
@@ -157,7 +161,7 @@ export default function LogScreen() {
                           <Dumbbell size={16} color={colors.contentMuted} />
                         </View>
                       }
-                      onPress={() => startPlanDay(plan.id, day.id)}
+                      onPress={() => onStartPlanDay(plan.id, day.id)}
                     />
                   ))}
                 </View>

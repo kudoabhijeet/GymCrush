@@ -1,39 +1,69 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { colorScheme } from 'nativewind';
+import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import {
   Bell,
   ChevronRight,
+  FileText,
   Flame,
+  LifeBuoy,
   LogOut,
   Ruler,
   Scale,
+  Shield,
   Target,
+  Trash2,
   UserRound,
 } from 'lucide-react-native';
 import { AppText } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
+import { useConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { ListGroup, ListRow, ListSeparator } from '@/components/ui/ListRow';
 import { ScreenScaffold } from '@/components/ui/ScreenScaffold';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatTile } from '@/components/ui/StatTile';
 import { useThemeColors } from '@/lib/theme';
+import { toast } from '@/lib/toastStore';
 import { formatWeight } from '@/lib/format';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useProfileStore } from '@/features/profile/profileStore';
 
-type ThemeChoice = 'system' | 'light' | 'dark';
-
 export default function ProfileScreen() {
   const colors = useThemeColors();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { bodyProfile, macroTarget, units, setUnits, resetOnboarding } = useProfileStore();
-  const [theme, setTheme] = useState<ThemeChoice>('system');
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
+  const { bodyProfile, macroTarget, units, setUnits, theme, setTheme, resetOnboarding } =
+    useProfileStore();
+  const [deleting, setDeleting] = useState(false);
+  const { confirm, element: confirmElement } = useConfirmSheet();
 
-  const changeTheme = (choice: ThemeChoice) => {
-    setTheme(choice);
-    colorScheme.set(choice);
+  const onLogout = async () => {
+    const ok = await confirm({
+      title: 'Log out?',
+      message: "You'll need to sign in again to see your data.",
+      confirmLabel: 'Log out',
+    });
+    if (ok) logout();
+  };
+
+  const confirmDeleteAccount = async () => {
+    const ok = await confirm({
+      title: 'Delete account?',
+      message:
+        'This permanently deletes your account and everything in it — plans, workouts, food and weight logs. This cannot be undone.',
+      confirmLabel: 'Delete account',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await deleteAccount();
+    } catch {
+      setDeleting(false);
+      toast.show({ message: "Couldn't delete your account — try again.", tone: 'warning' });
+    }
   };
 
   const initials =
@@ -124,7 +154,7 @@ export default function ProfileScreen() {
                 { value: 'dark', label: 'Dark' },
               ]}
               value={theme}
-              onChange={changeTheme}
+              onChange={setTheme}
             />
           </View>
         </Card>
@@ -134,13 +164,14 @@ export default function ProfileScreen() {
       <ListGroup>
         <ListRow
           title="Notifications"
-          subtitle="Rest reminders, streaks — coming soon"
+          subtitle="Rest timer alerts and daily reminders"
           left={
             <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
               <Bell size={18} color={colors.contentMuted} />
             </View>
           }
           right={<ChevronRight size={18} color={colors.contentFaint} />}
+          onPress={() => router.push('/notifications')}
         />
         <ListSeparator />
         <ListRow
@@ -162,13 +193,64 @@ export default function ProfileScreen() {
               <LogOut size={18} color={colors.danger} />
             </View>
           }
-          onPress={logout}
+          onPress={() => void onLogout()}
         />
       </ListGroup>
 
+      {/* Support & legal */}
+      <View className="gap-2">
+        <AppText variant="label">Support & legal</AppText>
+        <ListGroup>
+          <ListRow
+            title="Report a problem"
+            subtitle="Something broken or confusing?"
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                <LifeBuoy size={18} color={colors.contentMuted} />
+              </View>
+            }
+            onPress={() => router.push('/report-problem')}
+          />
+          <ListSeparator />
+          <ListRow
+            title="Terms & Conditions"
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                <FileText size={18} color={colors.contentMuted} />
+              </View>
+            }
+            onPress={() => router.push('/legal/terms')}
+          />
+          <ListSeparator />
+          <ListRow
+            title="Privacy Policy"
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-surface-muted">
+                <Shield size={18} color={colors.contentMuted} />
+              </View>
+            }
+            onPress={() => router.push('/legal/privacy')}
+          />
+          <ListSeparator />
+          <ListRow
+            title={deleting ? 'Deleting account…' : 'Delete my account'}
+            subtitle="Permanently erases your account and data"
+            destructive
+            left={
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-danger/10">
+                <Trash2 size={18} color={colors.danger} />
+              </View>
+            }
+            onPress={deleting ? undefined : () => void confirmDeleteAccount()}
+          />
+        </ListGroup>
+      </View>
+
       <AppText variant="caption" className="text-center">
-        GymCrush v0.1.1
+        GymCrush v{Constants.expoConfig?.version ?? '—'}
       </AppText>
+
+      {confirmElement}
     </ScreenScaffold>
   );
 }
