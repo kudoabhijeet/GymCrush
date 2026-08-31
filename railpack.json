@@ -29,6 +29,6 @@
     }
   },
   "deploy": {
-    "startCommand": "pnpm --filter @gymcrush/backend start"
+    "startCommand": "pnpm --filter @gymcrush/backend start:prod"
   }
 }
