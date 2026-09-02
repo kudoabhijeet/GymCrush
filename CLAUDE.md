@@ -82,6 +82,21 @@ won't pick up new native code, since this app runs on a custom dev client (`expo
   notification is scheduled/cancelled from `activeSessionStore` alongside the `restTimer` transitions,
   under a fixed notification id so a cancel still works after a process kill.
   These are **local** notifications only — there is no push token, no server-sent push.
+- **Live Activities (iOS)**: `app/src/lib/liveActivity.ts` is the only place that talks to
+  `expo-widgets` ActivityKit. Layout lives in `workout/WorkoutLiveActivity.tsx` (`@expo/ui` SwiftUI +
+  native `timerInterval` countdown — no per-second JS updates). Started/updated/ended from
+  `activeSessionStore` alongside the rest timer; re-bound on MMKV rehydration via
+  `getInstances()`. Local app updates only — no push tokens. Requires a native rebuild
+  (`expo run:ios` / fresh EAS dev build); Metro reload alone won't pick up the widget extension.
+  Two renderer constraints that are invisible until that rebuild, both already hit once:
+  **never use `containerRelativeFrame`** — it measures against the activity container rather than the
+  padded parent, so it overflows a padded stack on iOS 17+, and it sits behind an `#available(iOS 17)`
+  guard, so at the project's 16.4 deployment target it silently does nothing and the stack hugs its
+  content instead; fill width with a trailing `Spacer`. And **`Gauge`'s label slots are dropped** —
+  `expo-widgets` builds `GaugeView` without children, so `currentValueLabel` never reaches SwiftUI;
+  layer the label over the gauge with a `ZStack`. Layout regions render in JavaScriptCore inside the
+  extension, so a throw blanks the whole activity (DEBUG shows a red box and logs
+  `[ExpoWidgets] Layout evaluation failed:`) — guard anything derived from the nullable rest interval.
 - **e1RM / "best set"**: Epley formula (`weight * (1 + reps / 30)`), already used in
   `app/app/exercise/[id].tsx` — reuse the same formula anywhere else a "PR"/"best" needs computing so the
   definition stays consistent app-wide.
@@ -142,6 +157,15 @@ Vitest, run with `pnpm test`. Suites so far:
 - `app/src/lib/haptics.test.ts` — the semantic→native haptic mapping (PR thud-tick timing, web no-op).
 - `app/src/lib/toastStore.test.ts` — toast lifecycle: latest-wins replacement, timer ownership,
   action-toast minimum duration.
+- `app/src/lib/liveActivity.test.ts` + `app/src/features/workout/workoutActivityProps.test.ts` —
+  Live Activity facade no-ops off iOS, orphan rebind on hydrate, and rest-interval prop mapping.
+- `app/src/features/workout/workoutLiveActivity.test.ts` — the Live Activity *layout*, asserted
+  structurally (width fill, no `containerRelativeFrame`, stable banner height across a rest
+  transition, track colour ≠ card colour, countdown direction). It is the one exception to the
+  "no component rendering" rule below and does not weaken it: the layout is a pure
+  `(props, environment) → node tree` function, not a rendered RN tree. `vitest.config.mts` aliases
+  `@expo/ui/swift-ui` to `swiftUiStub.ts` and `react/jsx-runtime` to `widgetJsxRuntime.ts` to stand in
+  for what the widget extension provides — keep both faithful to `expo-widgets/bundle/*`.
 - `app/src/features/workout/activeSessionStore.test.ts` — rest-timer `adjustRest` math + notification
   re-arming, and `restoreExercise` (the remove-exercise undo path).
 

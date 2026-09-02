@@ -12,6 +12,29 @@ vi.mock('@/lib/notifications', () => ({
   hasNotificationPermission: vi.fn(async () => true),
   requestNotificationPermission: vi.fn(async () => true),
 }));
+vi.mock('@/lib/liveActivity', () => ({
+  buildWorkoutActivityProps: vi.fn(() => ({
+    workoutName: 'Test',
+    startedAt: 0,
+    setsDone: 0,
+    setsTotal: 0,
+    exercisesDone: 0,
+    exercisesTotal: 0,
+    sessionProgress: 0,
+    currentExerciseName: null,
+    currentSetNumber: null,
+    currentExerciseSetsDone: 0,
+    currentExerciseSetsTotal: 0,
+    exerciseProgress: 0,
+    lastSetLabel: null,
+    restStartedAt: null,
+    restEndsAt: null,
+  })),
+  startWorkoutActivity: vi.fn(),
+  updateWorkoutActivity: vi.fn(async () => undefined),
+  endWorkoutActivity: vi.fn(async () => undefined),
+  syncWorkoutActivityOnHydrate: vi.fn(async () => undefined),
+}));
 vi.mock('./hooks', () => ({
   bestE1rmFor: () => null,
   e1rmOf: (w: number | null, r: number | null) => (w ?? 0) * (1 + (r ?? 0) / 30),
