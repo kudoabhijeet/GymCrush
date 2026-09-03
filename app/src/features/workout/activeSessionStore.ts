@@ -6,7 +6,16 @@ import { mmkvStorage } from '@/lib/mmkvStorage';
 import { queryClient } from '@/lib/queryClient';
 import { toast } from '@/lib/toastStore';
 import { cancelRestNotification, scheduleRestNotification } from '@/lib/notifications';
+import {
+  buildWorkoutActivityProps,
+  endWorkoutActivity,
+  startWorkoutActivity,
+  syncWorkoutActivityOnHydrate,
+  updateWorkoutActivity,
+} from '@/lib/liveActivity';
 import { useNotificationStore } from '@/features/profile/notificationStore';
+import { useProfileStore } from '@/features/profile/profileStore';
+import { exerciseLookup } from '@/features/exercises/hooks';
 import { bestE1rmFor, e1rmOf, previousSetsFor } from './hooks';
 
 export interface ActiveSet {
@@ -126,6 +135,32 @@ function buildSets(
   }));
 }
 
+function buildLiveActivityProps(state: Pick<ActiveSessionState, 'session' | 'restTimer'>) {
+  const { session, restTimer } = state;
+  if (!session) return null;
+  const weightUnit = useProfileStore.getState().units;
+  return buildWorkoutActivityProps(
+    session,
+    restTimer,
+    weightUnit,
+    (id) => exerciseLookup(id)?.name ?? 'Exercise',
+  );
+}
+
+function pushLiveActivityStart(state: Pick<ActiveSessionState, 'session' | 'restTimer'>) {
+  const props = buildLiveActivityProps(state);
+  if (props) startWorkoutActivity(props);
+}
+
+function pushLiveActivityUpdate(state: Pick<ActiveSessionState, 'session' | 'restTimer'>) {
+  const props = buildLiveActivityProps(state);
+  if (props) {
+    void updateWorkoutActivity(props);
+  } else {
+    void endWorkoutActivity();
+  }
+}
+
 export const useActiveSessionStore = create<ActiveSessionState>()(
   persist(
     (set, get) => ({
@@ -160,6 +195,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           saving: false,
           justPR: null,
         });
+        pushLiveActivityStart(get());
       },
 
       addExercise: (exerciseId) => {
@@ -177,6 +213,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           sets: buildSets(rx?.targetSets ?? 3, previousSetsFor(exerciseId)),
         };
         set({ session: { ...session, exercises: [...session.exercises, exercise] } });
+        pushLiveActivityUpdate(get());
       },
 
       removeExercise: (activeExerciseId) => {
@@ -188,6 +225,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
             exercises: session.exercises.filter((e) => e.id !== activeExerciseId),
           },
         });
+        pushLiveActivityUpdate(get());
       },
 
       addSet: (activeExerciseId) => {
@@ -218,6 +256,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
             }),
           },
         });
+        pushLiveActivityUpdate(get());
       },
 
       removeSet: (activeExerciseId, setId) => {
@@ -239,6 +278,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
             }),
           },
         });
+        pushLiveActivityUpdate(get());
       },
 
       updateSet: (activeExerciseId, setId, patch) => {
@@ -312,6 +352,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
             : get().restTimer,
           justPR: pr ?? get().justPR,
         });
+        pushLiveActivityUpdate(get());
       },
 
       clearPR: () => set({ justPR: null }),
@@ -319,6 +360,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
       skipRest: () => {
         cancelRestNotification();
         set({ restTimer: null });
+        pushLiveActivityUpdate(get());
       },
 
       adjustRest: (deltaSec) => {
@@ -330,6 +372,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           // Adjusted down to nothing — same silent path as Skip.
           cancelRestNotification();
           set({ restTimer: null });
+          pushLiveActivityUpdate(get());
           return;
         }
         // Total grows/shrinks with the adjustment but never below what's left,
@@ -340,6 +383,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
           scheduleRestNotification(remaining);
         }
         set({ restTimer: { endsAt, durationSec } });
+        pushLiveActivityUpdate(get());
       },
 
       restoreExercise: (exercise, index) => {
@@ -348,6 +392,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         const exercises = [...session.exercises];
         exercises.splice(Math.min(index, exercises.length), 0, exercise);
         set({ session: { ...session, exercises } });
+        pushLiveActivityUpdate(get());
       },
 
       discard: () => {
@@ -357,6 +402,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         // stale exercise into whatever session comes next.
         toast.dismiss();
         set({ session: null, restTimer: null, saving: false, justPR: null });
+        void endWorkoutActivity();
       },
 
       finish: async () => {
@@ -368,6 +414,7 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         // Same reasoning as discard(): a pending undo must not survive the
         // session it belongs to.
         toast.dismiss();
+        void endWorkoutActivity();
         set({ saving: true, restTimer: null });
 
         try {
@@ -446,7 +493,15 @@ export const useActiveSessionStore = create<ActiveSessionState>()(
         reseedLocalSeq(state?.session ?? null);
         // MMKV is synchronous, so this callback runs inside `create()` — defer
         // the flag until the store binding exists.
-        queueMicrotask(() => useActiveSessionStore.setState({ hydrated: true }));
+        queueMicrotask(() => {
+          useActiveSessionStore.setState({ hydrated: true });
+          void syncWorkoutActivityOnHydrate(
+            state?.session ?? null,
+            null,
+            useProfileStore.getState().units,
+            (id) => exerciseLookup(id)?.name ?? 'Exercise',
+          );
+        });
       },
     },
   ),

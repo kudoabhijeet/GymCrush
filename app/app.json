@@ -13,7 +13,15 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "5"
+      "buildNumber": "5",
+      "infoPlist": {
+        "NSSupportsLiveActivities": true
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.kudoabhijeet.gymcrush"
+        ]
+      }
     },
     "android": {
       "package": "com.kudoabhijeet.gymcrush",
@@ -44,6 +52,15 @@
         "expo-notifications",
         {
           "color": "#ccff00"
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.kudoabhijeet.gymcrush.widgets",
+          "groupIdentifier": "group.com.kudoabhijeet.gymcrush",
+          "enablePushNotifications": false,
+          "widgets": []
         }
       ]
     ],
